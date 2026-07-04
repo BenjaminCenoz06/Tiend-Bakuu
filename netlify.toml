@@ -1,0 +1,36 @@
+# =============================================================
+#  BAKU — configuración de Netlify (sitio estático, sin build)
+#  Si tu repositorio de GitHub tiene los archivos del sitio en la
+#  RAÍZ (index.html arriba de todo), no toques nada.
+#  Si tu repo tiene una carpeta "crudo-studios" adentro, cambiá
+#  "publish" a "crudo-studios" (o configuralo en el panel de Netlify).
+# =============================================================
+[build]
+  command = ""
+  publish = "."
+
+# HTML: siempre fresco (revalida cada visita) → los cambios se ven al toque
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# JS y CSS: revalidan (usamos ?v= para forzar la versión nueva)
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Imágenes y fuentes: se cachean un mes (cambian poco)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+[[headers]]
+  for = "/lib/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
