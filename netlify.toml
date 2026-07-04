@@ -1,9 +1,9 @@
 # =============================================================
 #  BAKU — configuración de Netlify (sitio estático, sin build)
 #  Si tu repositorio de GitHub tiene los archivos del sitio en la
-#  RAÍZ (index.html arriba de todo), no toques nada.
-#  Si tu repo tiene una carpeta "crudo-studios" adentro, cambiá
-#  "publish" a "crudo-studios" (o configuralo en el panel de Netlify).
+#  raíz (index.html arriba de todo), no toques nada.
+#  Si tu repo tiene una carpeta "crudo-studios" adentro, cambia
+#  "publish" a "crudo-studios" (o configúralo en el panel de Netlify).
 # =============================================================
 [build]
   command = ""
@@ -34,3 +34,23 @@
   for = "/lib/*"
   [headers.values]
     Cache-Control = "public, max-age=2592000"
+
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/producto"
+  to = "/producto.html"
+  status = 200
+
+[[redirects]]
+  from = "/categoria"
+  to = "/categoria.html"
+  status = 200

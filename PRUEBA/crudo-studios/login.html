@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acceso · BAKU Panel</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#100E09">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23100E09'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%23E8A63B' stroke-width='1.2'/%3E%3Ctext x='16' y='21' font-family='Arial Black,sans-serif' font-size='13' font-weight='900' fill='%23E8A63B' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="assets/css/panel.css?v=20260702">
+  <link rel="stylesheet" href="assets/css/login.css?v=20260702">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main class="login">
+    <div class="login-card">
+
+      <div class="login-head">
+        <span class="seal" aria-hidden="true">BAKU</span>
+        <div>
+          <h1 class="login-title" data-title>Panel de administración</h1>
+          <p class="login-sub" data-sub>Ingresá para gestionar tu tienda</p>
+        </div>
+      </div>
+
+      <!-- Mensajes -->
+      <div class="alert alert-error"   data-error   hidden style="margin-bottom:1rem">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 6v5M10 13.5v.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span data-error-msg></span>
+      </div>
+      <div class="alert alert-success" data-success hidden style="margin-bottom:1rem">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 10.2l2.3 2.3 4.7-4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span data-success-msg></span>
+      </div>
+
+      <!-- ============ VISTA: INGRESAR ============ -->
+      <form class="login-form login-view" data-view="login" novalidate>
+        <div class="field">
+          <label for="email">Correo electrónico</label>
+          <div class="control">
+            <input class="input" id="email" name="email" type="email" inputmode="email"
+                   autocomplete="username" placeholder="tucorreo@ejemplo.com" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <div class="control">
+            <input class="input has-icon-right" id="password" name="password" type="password"
+                   autocomplete="current-password" placeholder="••••••••" required minlength="6">
+            <button type="button" class="control-icon" data-toggle-pass aria-label="Mostrar contraseña">
+              <svg data-eye viewBox="0 0 20 20"><path d="M1.5 10S4.5 4.5 10 4.5 18.5 10 18.5 10 15.5 15.5 10 15.5 1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-row">
+          <label class="check">
+            <input type="checkbox" name="remember" checked>
+            <span class="check-box"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l3.5 3.5L16 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            Recordar sesión
+          </label>
+          <a class="login-link" href="#" data-goto="recover">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <button class="btn btn-lg btn-block" type="submit" data-submit-login>Ingresar</button>
+      </form>
+
+      <!-- ============ VISTA: RECUPERAR ============ -->
+      <form class="login-form login-view" data-view="recover" hidden novalidate>
+        <a class="login-back" href="#" data-goto="login">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 4l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Volver
+        </a>
+        <p class="field-hint">Te enviamos un enlace a tu correo para crear una contraseña nueva.</p>
+        <div class="field">
+          <label for="recover-email">Correo electrónico</label>
+          <div class="control">
+            <input class="input" id="recover-email" name="email" type="email" inputmode="email"
+                   autocomplete="username" placeholder="tucorreo@ejemplo.com" required>
+          </div>
+        </div>
+        <button class="btn btn-lg btn-block" type="submit" data-submit-recover>Enviar enlace</button>
+      </form>
+
+      <!-- ============ VISTA: NUEVA CONTRASEÑA ============ -->
+      <form class="login-form login-view" data-view="reset" hidden novalidate>
+        <p class="field-hint">Definí tu nueva contraseña.</p>
+        <div class="field">
+          <label for="new-password">Nueva contraseña</label>
+          <div class="control">
+            <input class="input has-icon-right" id="new-password" name="password" type="password"
+                   autocomplete="new-password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            <button type="button" class="control-icon" data-toggle-pass aria-label="Mostrar contraseña">
+              <svg viewBox="0 0 20 20"><path d="M1.5 10S4.5 4.5 10 4.5 18.5 10 18.5 10 15.5 15.5 10 15.5 1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+          </div>
+        </div>
+        <button class="btn btn-lg btn-block" type="submit" data-submit-reset>Guardar contraseña</button>
+      </form>
+
+      <div class="login-foot">
+        <span class="brandmark">BAKU</span> · Indumentaria — Nueva Córdoba
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/admin/login.js?v=20260702"></script>
+</body>
+</html>
