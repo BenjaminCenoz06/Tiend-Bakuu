@@ -100,6 +100,14 @@ function renderCatalog(items) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
 
+  if (!items || !items.length) {
+    grid.innerHTML = `<div class="sheets-notice" style="grid-column:1/-1;text-align:center;padding:3rem 1rem;color:var(--ink-mute)">
+      <p style="margin-bottom:0.5rem;font-size:1.1rem">⚠️ No se pudieron obtener los productos de Google Sheets en este momento.</p>
+      <p style="font-size:0.9rem">Por favor, reintentá recargando la página o verificá la conexión con la planilla.</p>
+    </div>`;
+    return;
+  }
+
   grid.innerHTML = items.map(p => card(p)).join("");
   // Exponer al storefront para que el carrito/quickview conozcan estos productos
   if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
@@ -108,15 +116,26 @@ function renderCatalog(items) {
 }
 
 function card(p) {
-  const badge = p.badge === "oferta"
-    ? '<span class="badge badge-sale">Oferta</span>'
-    : (p.badge === "nuevo" ? '<span class="badge badge-new">Nuevo</span>' : "");
+  // Badge de estado: Agotado / Sin Stock / Oferta / Nuevo
+  let badge = "";
+  if (p.stock === 0 || p.activo === false) {
+    badge = '<span class="badge badge-last" style="background:#3a1c1c;color:#ff9d9d">Sin Stock</span>';
+  } else if (p.badge) {
+    const isSale = p.badge.includes("%") || p.badge.toLowerCase() === "oferta";
+    badge = `<span class="badge ${isSale ? "badge-sale" : "badge-new"}">${esc(p.badge)}</span>`;
+  }
+
+  // Media: foto si existe URL, o arte SVG correspondiente a la categoría
+  const artId = p.art || "g-tee";
   const media = p.image
     ? `<img class="card-photo" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`
-    : `<div class="card-art"><svg class="art" viewBox="0 0 400 500"><use href="#g-tee"/></svg></div>`;
+    : `<div class="card-art"><svg class="art" viewBox="0 0 400 500"><use href="#${esc(artId)}"/></svg></div>`;
+
+  // Precio y cuotas
   const price = p.oldPrice
     ? `<s>${money(p.oldPrice)}</s> ${money(p.price)}`
     : money(p.price);
+
   return `<article class="card" data-product="${esc(p.id)}">
     <div class="card-media">
       <a class="card-link" href="producto.html?id=${esc(p.id)}" aria-label="${esc(p.name)}"></a>

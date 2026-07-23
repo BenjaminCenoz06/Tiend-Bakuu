@@ -7,6 +7,7 @@
 //  Expone window.BAKU_SHOP para que las páginas agreguen productos.
 // =============================================================
 import { fetchSettings } from "./storefront-data.js";
+import { updateStockAfterPurchase } from "../services/googleSheets.service.js";
 
 const KEY = "baku.cart.v1";
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -138,6 +139,7 @@ function orderText() {
   return `¡Hola BAKU! Quiero hacer este pedido:\n\n${lines.join("\n")}\n\nTotal: ${money(total())}`;
 }
 function checkoutWhatsApp() {
+  updateStockAfterPurchase(cart);
   window.open("https://wa.me/" + waNumber() + "?text=" + encodeURIComponent(orderText()), "_blank");
 }
 

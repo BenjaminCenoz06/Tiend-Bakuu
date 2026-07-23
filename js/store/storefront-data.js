@@ -7,6 +7,7 @@
 //  si Supabase no responde, la tienda sigue con sus datos base.
 // =============================================================
 import { supabase } from "../core/client.js";
+import { fetchSheetsProducts } from "../services/googleSheets.service.js";
 
 /** Trae la configuración pública de la tienda (settings). */
 export async function fetchSettings() {
@@ -31,15 +32,30 @@ export async function fetchBanners() {
   return data || [];
 }
 
-/** Trae los productos activos con su imagen principal y categoría. */
+/** 
+ * Trae los productos activos desde Google Sheets API.
+ * Si no responde o falla, realiza fallback tolerante a Supabase / catálogo base.
+ */
 export async function fetchProducts() {
-  const { data, error } = await supabase
-    .from("products")
-    .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
-    .eq("activo", true)
-    .order("orden", { ascending: true });
-  if (error) return [];
-  return data || [];
+  // 1. Intentar obtener productos dinámicos desde la API de Google Sheets
+  const sheetsResult = await fetchSheetsProducts().catch(() => ({ success: false, data: [] }));
+  if (sheetsResult && sheetsResult.success && sheetsResult.data && sheetsResult.data.length > 0) {
+    return sheetsResult.data;
+  }
+
+  // 2. Fallback a Supabase si no se pudieron cargar productos de Google Sheets
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
+      .eq("activo", true)
+      .order("orden", { ascending: true });
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch (_) {}
+
+  return [];
 }
 
 /** Aplica los colores del panel como variables CSS + overrides del sitio. */
@@ -121,26 +137,35 @@ export function applyHeroBanners(banners) {
   }
 }
 
-/** Normaliza un producto de Supabase al formato que usa la tienda. */
+/** Normaliza un producto de Google Sheets o Supabase al formato unificado de la tienda. */
 export function toStoreProduct(p) {
+  if (!p) return null;
+
+  // Si ya proviene de Google Sheets y fue normalizado por googleSheets.service.js
+  if (p.fromSheets) {
+    return p;
+  }
+
+  // De lo contrario, normalizar producto de Supabase
   const imgs = (p.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
   const principal = imgs.find(i => i.es_principal) || imgs[0];
   return {
-    id: p.id,
-    name: p.nombre,
-    price: Number(p.precio_oferta || p.precio),
-    oldPrice: p.precio_anterior ? Number(p.precio_anterior) : (p.precio_oferta ? Number(p.precio) : null),
-    color: (p.variantes && p.variantes[0] && p.variantes[0].color) || "",
-    category: (p.categoria && p.categoria.slug) || "",
-    categoryName: (p.categoria && p.categoria.nombre) || "",
-    sizes: [...new Set((p.variantes || []).map(v => v.talle).filter(Boolean))],
-    desc: p.descripcion || "",
-    descLarga: p.descripcion_larga || "",
+    id: String(p.id),
+    name: p.nombre || p.name,
+    price: Number(p.precio_oferta || p.precio || p.price),
+    oldPrice: p.precio_anterior ? Number(p.precio_anterior) : (p.precio_oferta ? Number(p.precio) : (p.oldPrice || null)),
+    color: (p.variantes && p.variantes[0] && p.variantes[0].color) || p.color || "",
+    category: (p.categoria && p.categoria.slug) || p.category || "",
+    categoryName: (p.categoria && p.categoria.nombre) || p.categoryName || "",
+    sizes: p.sizes || [...new Set((p.variantes || []).map(v => v.talle).filter(Boolean))],
+    desc: p.descripcion || p.desc || "",
+    descLarga: p.descripcion_larga || p.descLarga || "",
     caracteristicas: Array.isArray(p.caracteristicas) ? p.caracteristicas : [],
-    image: principal ? principal.url : null,
-    images: imgs.map(i => i.url),
-    badge: p.en_oferta ? "oferta" : (p.nuevo ? "nuevo" : null),
+    image: principal ? principal.url : (p.image || null),
+    images: imgs.length ? imgs.map(i => i.url) : (p.images || []),
+    badge: p.en_oferta ? "oferta" : (p.nuevo ? "nuevo" : (p.badge || null)),
     destacado: !!p.destacado,
     stock: p.stock,
+    art: p.art || "g-tee",
   };
 }
