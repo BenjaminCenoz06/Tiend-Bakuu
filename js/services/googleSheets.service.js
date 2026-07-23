@@ -64,35 +64,41 @@ export function normalizeSheetProduct(raw) {
 
   const hasDiscount = priceSale !== null && priceSale > 0 && priceSale < priceRegular;
   const currentPrice = hasDiscount ? priceSale : priceRegular;
-  const oldPrice = hasDiscount ? priceRegular : null;
-
-  // Stock y Estado
-  const stock = raw.Stock !== undefined && raw.Stock !== "" ? Number(raw.Stock) : 0;
-  const estadoStr = String(raw.Estado || "Disponible").trim();
-  const isAvailable = estadoStr.toLowerCase() === "disponible" && stock > 0;
+  const oldPrice = hasDiscount ? pric"  // Stock y Estado
+  const stock = raw.Stock !== undefined && raw.Stock !== \"\" ? Number(raw.Stock) : 0;
+  const estadoStr = String(raw.Estado || \"Disponible\").trim();
+  const isAvailable = estadoStr.toLowerCase() !== \"inactivo\" && estadoStr.toLowerCase() !== \"oculto\" && estadoStr.toLowerCase() !== \"desactivado\";
 
   // badge / oferta / descuento automático
   let badge = null;
-  if (hasDiscount) {
+  if (stock === 0) {
+    badge = \"Sin Stock\";
+  } else if (hasDiscount) {
     const pct = Math.round(((priceRegular - priceSale) / priceRegular) * 100);
-    badge = pct > 0 ? `-${pct}%` : "oferta";
+    badge = pct > 0 ? `-${pct}%` : \"oferta\";
   } else if (raw.Badge) {
     badge = String(raw.Badge);
   }
 
-  // --- FUTURAS EXPANSIONES ---
-  // Múltiples imágenes / Imagen principal
-  const mainImage = raw.Imagen || raw.ImagenPrincipal || (Array.isArray(raw.Imagenes) ? raw.Imagenes[0] : null);
-  const images = Array.isArray(raw.Imagenes)
-    ? raw.Imagenes
-    : (raw.Imagenes ? String(raw.Imagenes).split(",").map(s => s.trim()) : (mainImage ? [mainImage] : []));
+  // --- IMÁGENES (Imágenes cargadas desde el Admin o Google Sheets) ---
+  let customImage = null;
+  try {
+    customImage = localStorage.getItem(\"baku_prod_img_\" + id);
+  } catch (_) {}
+
+  const mainImage = customImage || raw.Imagen || raw.ImagenPrincipal || (Array.isArray(raw.Imagenes) ? raw.Imagenes[0] : null);
+  const images = customImage
+    ? [customImage]
+    : (Array.isArray(raw.Imagenes)
+      ? raw.Imagenes
+      : (raw.Imagenes ? String(raw.Imagenes).split(\",\").map(s => s.trim()) : (mainImage ? [mainImage] : [])));
 
   // Talles / Colores / Variantes
-  const colors = raw.Colores ? String(raw.Colores).split(",").map(s => s.trim()) : (raw.Color ? [raw.Color] : []);
-  const sizes = raw.Talles ? String(raw.Talles).split(",").map(s => s.trim()) : (raw.Talle ? [raw.Talle] : ["S", "M", "L", "XL"]);
+  const colors = raw.Colores ? String(raw.Colores).split(\",\").map(s => s.trim()) : (raw.Color ? [raw.Color] : []);
+  const sizes = raw.Talles ? String(raw.Talles).split(\",\").map(s => s.trim()) : (raw.Talle ? [raw.Talle] : [\"S\", \"M\", \"L\", \"XL\"]);
 
   // Arte SVG fallback predeterminado por categoría
-  const artSvg = CATEGORY_ART_MAP[categorySlug] || "g-tee";
+  const artSvg = CATEGORY_ART_MAP[categorySlug] || \"g-tee\";
 
   return {
     id: id,
@@ -110,17 +116,19 @@ export function normalizeSheetProduct(raw) {
     estado: estadoStr,
     activo: isAvailable,
     badge: badge,
-    color: colors[0] || "",
+    color: colors[0] || \"\",
     colors: colors,
     sizes: sizes,
     image: mainImage || null,
     images: images,
     art: artSvg,
     desc: raw.Descripcion || raw.desc || `${name} — Categoría ${categoryName}. Streetwear Baku.`,
-    descLarga: raw.DescripcionLarga || raw.descLarga || "",
-    caracteristicas: raw.Caracteristicas ? String(raw.Caracteristicas).split("·").map(s => s.trim()) : [],
+    descLarga: raw.DescripcionLarga || raw.descLarga || \"\",
+    caracteristicas: raw.Caracteristicas ? String(raw.Caracteristicas).split(\"·\").map(s => s.trim()) : [],
     variants: raw.Variantes || [],
     fromSheets: true,
+  };
+}"    fromSheets: true,
   };
 }
 

@@ -19,24 +19,17 @@ class ProductRepository extends BaseRepository {
     super("products", { orderBy: "orden", ascending: true });
   }
 
-  /** Listado para la tabla del panel: combina imágenes de Supabase con texto/números de Google Sheets. */
+  /** Listado para la tabla del panel Admin: muestra los productos dinámicos de Google Sheets. */
   async listTabla() {
-    const [supabaseRes, sheetsRes] = await Promise.all([
-      this.list({}, {
-        orderBy: "created_at",
-        ascending: false,
-        select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
-      }).catch(() => []),
-      fetchSheetsProducts().catch(() => ({ success: false, data: [] })),
-    ]);
-
-    const supabaseProds = Array.isArray(supabaseRes) ? supabaseRes : [];
-    const sheetsProds = (sheetsRes && sheetsRes.success && sheetsRes.data) ? sheetsRes.data : [];
-
-    if (sheetsProds.length > 0 || supabaseProds.length > 0) {
-      return mergeSheetsAndSupabaseProducts(sheetsProds, supabaseProds);
+    const sheetsRes = await fetchSheetsProducts({ forceRefresh: true }).catch(() => null);
+    if (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data) && sheetsRes.data.length > 0) {
+      return sheetsRes.data;
     }
-    return supabaseProds;
+    return this.list({}, {
+      orderBy: "created_at",
+      ascending: false,
+      select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
+    }).catch(() => []);
   }
 
   /** Producto completo con imágenes y variantes (para editar). */

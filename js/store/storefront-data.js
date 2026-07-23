@@ -33,26 +33,28 @@ export async function fetchBanners() {
 }
 
 /** 
- * Trae los productos unificados combinando Google Sheets (textos/precios/stock)
- * con las imágenes subidas desde el panel Admin en Supabase.
+ * Trae los productos activos desde Google Sheets API en tiempo real.
+ * Si no responde o falla la conexión, realiza un fallback tolerante a Supabase.
  */
 export async function fetchProducts() {
-  const [sheetsResult, supabaseResult] = await Promise.all([
-    fetchSheetsProducts().catch(() => ({ success: false, data: [] })),
-    supabase.from("products")
+  // 1. Obtener productos de Google Sheets directamente
+  const sheetsResult = await fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] }));
+  
+  if (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data) && sheetsResult.data.length > 0) {
+    return sheetsResult.data;
+  }
+
+  // 2. Fallback a Supabase solo si Google Sheets falla por completo
+  try {
+    const { data, error } = await supabase
+      .from("products")
       .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
       .eq("activo", true)
-      .order("orden", { ascending: true })
-      .catch(() => ({ data: [] })),
-  ]);
-
-  const sheetsData = (sheetsResult && sheetsResult.success && sheetsResult.data) ? sheetsResult.data : [];
-  const supabaseData = (supabaseResult && supabaseResult.data) ? supabaseResult.data : [];
-
-  // Si hay datos de Google Sheets o Supabase, combinarlos de forma transparente
-  if (sheetsData.length > 0 || supabaseData.length > 0) {
-    return mergeSheetsAndSupabaseProducts(sheetsData, supabaseData);
-  }
+      .order("orden", { ascending: true });
+    if (!error && data && data.length > 0) {
+      return data;
+    }
+  } catch (_) {}
 
   return [];
 }
