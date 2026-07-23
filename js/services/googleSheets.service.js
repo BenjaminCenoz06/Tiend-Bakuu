@@ -253,96 +253,64 @@ export async function updateStockAfterPurchase(purchasedItems) {
  * @returns {Array} Lista unificada de productos.
  */
 export function mergeSheetsAndSupabaseProducts(sheetsProds = [], supabaseProds = []) {
-  const map = new Map();
+  // Si no hay productos en Google Sheets, fallback a Supabase
+  if (!sheetsProds || !sheetsProds.length) {
+    return (supabaseProds || []).map(sp => {
+      const imgs = (sp.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
+      const principal = imgs.find(i => i.es_principal) || imgs[0];
+      return {
+        ...sp,
+        id: String(sp.id),
+        name: sp.nombre,
+        nombre: sp.nombre,
+        precio: Number(sp.precio_oferta || sp.precio),
+        price: Number(sp.precio_oferta || sp.precio),
+        oldPrice: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
+        precio_anterior: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
+        category: (sp.categoria && sp.categoria.slug) || "",
+        categoryName: (sp.categoria && sp.categoria.nombre) || "",
+        image: principal ? principal.url : null,
+        images: imgs.map(i => i.url),
+      };
+    });
+  }
 
-  // 1. Cargar productos base desde Supabase (con sus imágenes)
+  // Si hay productos en Google Sheets, Google Sheets es la fuente de verdad.
+  // Solo se sincronizan fotos cargadas en Supabase Admin si el producto coincide.
+  const supabaseMap = new Map();
   (supabaseProds || []).forEach(sp => {
     const keyId = String(sp.id);
     const keyName = slugify(sp.nombre || sp.name || "");
-
     const imgs = (sp.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
     const principal = imgs.find(i => i.es_principal) || imgs[0];
-    const mainImageUrl = principal ? principal.url : null;
-    const imagesList = imgs.map(i => i.url);
-
-    map.set(keyId, {
-      ...sp,
-      id: keyId,
-      rawId: sp.id,
-      nombre: sp.nombre,
-      name: sp.nombre,
-      precio: Number(sp.precio_oferta || sp.precio),
-      precio_anterior: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
-      precio_oferta: sp.precio_oferta ? Number(sp.precio_oferta) : null,
-      price: Number(sp.precio_oferta || sp.precio),
-      oldPrice: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
-      stock: sp.stock,
-      activo: sp.activo,
-      categoria: sp.categoria,
-      category: (sp.categoria && sp.categoria.slug) || "",
-      categoryName: (sp.categoria && sp.categoria.nombre) || "",
-      descripcion: sp.descripcion,
-      descripcion_larga: sp.descripcion_larga,
-      image: mainImageUrl,
-      images: imagesList,
+    const itemData = {
+      image: principal ? principal.url : null,
+      images: imgs.map(i => i.url),
       imagenes: sp.imagenes || [],
       variantes: sp.variantes || [],
-      keyName: keyName,
-    });
+    };
+    supabaseMap.set(keyId, itemData);
+    if (keyName) supabaseMap.set(keyName, itemData);
   });
 
-  // 2. Sobreponer textos, precios y números de Google Sheets
-  (sheetsProds || []).forEach(gp => {
+  return sheetsProds.map(gp => {
     const keyId = String(gp.id);
     const keyName = slugify(gp.name || gp.nombre || "");
+    const spData = supabaseMap.get(keyId) || supabaseMap.get(keyName) || null;
 
-    let targetKey = null;
-    if (map.has(keyId)) {
-      targetKey = keyId;
-    } else {
-      for (const [k, item] of map.entries()) {
-        if (item.keyName && item.keyName === keyName) {
-          targetKey = k;
-          break;
-        }
-      }
+    let mainImage = gp.image;
+    let images = gp.images || [];
+
+    if (spData) {
+      if (spData.image) mainImage = spData.image;
+      if (spData.images && spData.images.length) images = spData.images;
     }
 
-    if (targetKey) {
-      const item = map.get(targetKey);
-      item.nombre = gp.nombre || item.nombre;
-      item.name = gp.name || item.name;
-      item.precio = gp.precio;
-      item.price = gp.price;
-      item.precio_anterior = gp.oldPrice;
-      item.oldPrice = gp.oldPrice;
-      item.stock = gp.stock;
-      item.activo = gp.activo;
-      item.estado = gp.estado;
-      if (gp.categoryName) {
-        item.categoryName = gp.categoryName;
-        if (item.categoria && typeof item.categoria === "object") {
-          item.categoria.nombre = gp.categoryName;
-        }
-      }
-      if (gp.sizes && gp.sizes.length) item.sizes = gp.sizes;
-      if (gp.desc) item.desc = gp.desc;
-      item.badge = gp.badge || item.badge;
-      item.art = gp.art || item.art;
-      item.fromSheets = true;
-
-      // Mantener imágenes del Admin; si Supabase no posee foto, usar la de Sheets
-      if (!item.image && gp.image) {
-        item.image = gp.image;
-        item.images = gp.images;
-      }
-    } else {
-      map.set(keyId, {
-        ...gp,
-        fromSheets: true,
-      });
-    }
+    return {
+      ...gp,
+      image: mainImage || null,
+      images: images,
+      fromSheets: true,
+    };
   });
-
-  return Array.from(map.values());
 }
