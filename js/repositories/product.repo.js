@@ -6,7 +6,7 @@
 // =============================================================
 import { BaseRepository } from "../core/BaseRepository.js";
 import { supabase } from "../core/client.js";
-import { fetchSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
+import { fetchSheetsProducts, getCachedSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
 
 function slugify(s) {
   return String(s || "producto")
@@ -31,7 +31,10 @@ class ProductRepository extends BaseRepository {
     ]);
 
     const supabaseProds = Array.isArray(supabaseRes) ? supabaseRes : [];
-    const sheetsProds = (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data)) ? sheetsRes.data : [];
+    let sheetsProds = (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data)) ? sheetsRes.data : [];
+    if (!sheetsProds.length) {
+      sheetsProds = getCachedSheetsProducts();
+    }
 
     if (sheetsProds.length > 0 || supabaseProds.length > 0) {
       return mergeSheetsAndSupabaseProducts(sheetsProds, supabaseProds);

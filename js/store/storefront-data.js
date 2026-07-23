@@ -7,7 +7,7 @@
 //  si Supabase no responde, la tienda sigue con sus datos base.
 // =============================================================
 import { supabase } from "../core/client.js";
-import { fetchSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
+import { fetchSheetsProducts, getCachedSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
 
 /** Trae la configuración pública de la tienda (settings). */
 export async function fetchSettings() {
@@ -46,7 +46,10 @@ export async function fetchProducts() {
       .catch(() => ({ data: [] })),
   ]);
 
-  const sheetsData = (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data)) ? sheetsResult.data : [];
+  let sheetsData = (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data)) ? sheetsResult.data : [];
+  if (!sheetsData.length) {
+    sheetsData = getCachedSheetsProducts();
+  }
   const supabaseData = (supabaseResult && Array.isArray(supabaseResult.data)) ? supabaseResult.data : [];
 
   if (sheetsData.length > 0) {

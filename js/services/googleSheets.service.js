@@ -168,6 +168,22 @@ export function normalizeSheetProduct(raw) {
   };
 }
 
+const LOCAL_STORAGE_KEY = "baku_last_sheets_prods_v2";
+
+/** Devuelve los últimos productos conocidos de Google Sheets guardados localmente (0ms). */
+export function getCachedSheetsProducts() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length) {
+        return data.map(normalizeSheetProduct).filter(Boolean);
+      }
+    }
+  } catch (_) {}
+  return [];
+}
+
 /**
  * Consulta la API de Google Sheets en tiempo real con anti-caché (_t=Timestamp).
  *
@@ -175,7 +191,7 @@ export function normalizeSheetProduct(raw) {
  * @returns {Promise<{ success: boolean, data: Array, error: string|null, fromCache: boolean }>}
  */
 export async function fetchSheetsProducts(options = {}) {
-  const { forceRefresh = false, timeoutMs = 8000 } = options;
+  const { forceRefresh = false, timeoutMs = 4000 } = options;
 
   // 1. Si CACHE_TTL_MS > 0, consultar caché de sesión
   if (!forceRefresh && CACHE_TTL_MS > 0) {
@@ -224,8 +240,9 @@ export async function fetchSheetsProducts(options = {}) {
     // Normalizar cada producto
     const products = rawData.map(normalizeSheetProduct).filter(Boolean);
 
-    // Guardar respuesta en caché de sesión
+    // Guardar respuesta en localStorage para carga instantánea futura
     try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rawData));
       sessionStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
         data: rawData,
