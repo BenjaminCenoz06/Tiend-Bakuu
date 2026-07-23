@@ -191,7 +191,7 @@ export function getCachedSheetsProducts() {
  * @returns {Promise<{ success: boolean, data: Array, error: string|null, fromCache: boolean }>}
  */
 export async function fetchSheetsProducts(options = {}) {
-  const { forceRefresh = false, timeoutMs = 4000 } = options;
+  const { forceRefresh = false, timeoutMs = 10000, maxRetries = 2 } = options;
 
   // 1. Si CACHE_TTL_MS > 0, consultar caché de sesión
   if (!forceRefresh && CACHE_TTL_MS > 0) {
@@ -213,63 +213,71 @@ export async function fetchSheetsProducts(options = {}) {
     }
   }
 
-  // 2. Realizar petición HTTP directa con parametro anti-cache _t=timestamp
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  const cacheBustUrl = SHEETS_API_URL + (SHEETS_API_URL.includes("?") ? "&" : "?") + "_t=" + Date.now();
+  // 2. Realizar petición HTTP directa con reintento automático y timeout holgado (10s)
+  let lastError = null;
 
-  try {
-    const response = await fetch(cacheBustUrl, {
-      method: "GET",
-      signal: controller.signal,
-      redirect: "follow",
-    });
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const cacheBustUrl = SHEETS_API_URL + (SHEETS_API_URL.includes("?") ? "&" : "?") + "_t=" + Date.now();
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Respuesta HTTP no válida: status ${response.status}`);
-    }
-
-    const rawData = await response.json();
-
-    if (!Array.isArray(rawData)) {
-      throw new Error("El formato de respuesta de la API no es un listado de productos.");
-    }
-
-    // Normalizar cada producto
-    const products = rawData.map(normalizeSheetProduct).filter(Boolean);
-
-    // Guardar respuesta en localStorage para carga instantánea futura
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rawData));
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        data: rawData,
-      }));
-    } catch (_) {}
+      const response = await fetch(cacheBustUrl, {
+        method: "GET",
+        signal: controller.signal,
+        redirect: "follow",
+      });
 
-    return {
-      success: true,
-      data: products,
-      error: null,
-      fromCache: false,
-    };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    const errorMessage = err.name === "AbortError"
-      ? "La conexión con Google Sheets tardó demasiado (Timeout)."
-      : (err.message || "No se pudo conectar con la API de Google Sheets.");
+      clearTimeout(timeoutId);
 
-    console.warn("[GoogleSheetsService] Fallo en la consulta API:", errorMessage);
+      if (!response.ok) {
+        throw new Error(`Respuesta HTTP no válida: status ${response.status}`);
+      }
 
-    return {
-      success: false,
-      data: [],
-      error: errorMessage,
-      fromCache: false,
-    };
+      const rawData = await response.json();
+
+      if (!Array.isArray(rawData)) {
+        throw new Error("El formato de respuesta de la API no es un listado de productos.");
+      }
+
+      // Normalizar cada producto
+      const products = rawData.map(normalizeSheetProduct).filter(Boolean);
+
+      // Guardar respuesta en localStorage para carga instantánea futura
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rawData));
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          timestamp: Date.now(),
+          data: rawData,
+        }));
+      } catch (_) {}
+
+      return {
+        success: true,
+        data: products,
+        error: null,
+        fromCache: false,
+      };
+    } catch (err) {
+      clearTimeout(timeoutId);
+      lastError = err.name === "AbortError"
+        ? "La conexión con Google Sheets tardó demasiado (Timeout)."
+        : (err.message || "No se pudo conectar con la API de Google Sheets.");
+
+      console.warn(`[GoogleSheetsService] Intento ${attempt}/${maxRetries} falló:`, lastError);
+      if (attempt < maxRetries) {
+        // Pausa breve de 500ms antes del reintento
+        await new Promise(res => setTimeout(res, 500));
+      }
+    }
   }
+
+  return {
+    success: false,
+    data: [],
+    error: lastError,
+    fromCache: false,
+  };
 }
 
 /**
