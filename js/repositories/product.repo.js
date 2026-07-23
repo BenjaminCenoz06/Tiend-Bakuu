@@ -21,15 +21,22 @@ class ProductRepository extends BaseRepository {
 
   /** Listado para la tabla del panel Admin: muestra los productos dinámicos de Google Sheets. */
   async listTabla() {
-    const sheetsRes = await fetchSheetsProducts({ forceRefresh: true }).catch(() => null);
-    if (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data) && sheetsRes.data.length > 0) {
-      return sheetsRes.data;
+    const [supabaseRes, sheetsRes] = await Promise.all([
+      this.list({}, {
+        orderBy: "created_at",
+        ascending: false,
+        select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
+      }).catch(() => []),
+      fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] })),
+    ]);
+
+    const supabaseProds = Array.isArray(supabaseRes) ? supabaseRes : [];
+    const sheetsProds = (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data)) ? sheetsRes.data : [];
+
+    if (sheetsProds.length > 0 || supabaseProds.length > 0) {
+      return mergeSheetsAndSupabaseProducts(sheetsProds, supabaseProds);
     }
-    return this.list({}, {
-      orderBy: "created_at",
-      ascending: false,
-      select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
-    }).catch(() => []);
+    return supabaseProds;
   }
 
   /** Producto completo con imágenes y variantes (para editar). */

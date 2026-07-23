@@ -37,24 +37,21 @@ export async function fetchBanners() {
  * Si no responde o falla la conexión, realiza un fallback tolerante a Supabase.
  */
 export async function fetchProducts() {
-  // 1. Obtener productos de Google Sheets directamente
-  const sheetsResult = await fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] }));
-  
-  if (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data) && sheetsResult.data.length > 0) {
-    return sheetsResult.data;
-  }
-
-  // 2. Fallback a Supabase solo si Google Sheets falla por completo
-  try {
-    const { data, error } = await supabase
-      .from("products")
+  const [sheetsResult, supabaseResult] = await Promise.all([
+    fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] })),
+    supabase.from("products")
       .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
       .eq("activo", true)
-      .order("orden", { ascending: true });
-    if (!error && data && data.length > 0) {
-      return data;
-    }
-  } catch (_) {}
+      .order("orden", { ascending: true })
+      .catch(() => ({ data: [] })),
+  ]);
+
+  const sheetsData = (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data)) ? sheetsResult.data : [];
+  const supabaseData = (supabaseResult && Array.isArray(supabaseResult.data)) ? supabaseResult.data : [];
+
+  if (sheetsData.length > 0 || supabaseData.length > 0) {
+    return mergeSheetsAndSupabaseProducts(sheetsData, supabaseData);
+  }
 
   return [];
 }
