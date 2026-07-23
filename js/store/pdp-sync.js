@@ -42,15 +42,19 @@ function whenReady() {
     console.warn("[pdp-sync] Error al obtener productos:", e);
   }
 
-  // Buscar coincidencia por ID (ej. "1"), slug (ej. "hoodie-bruma") o ID crudo
-  const targetSlug = slugify(idParam);
+  // Buscar coincidencia por ID (ej. "1"), slug (ej. "hoodie") o ID crudo
+  const targetSlug = idParam ? slugify(idParam) : "";
   let p = products.find(prod =>
     String(prod.id) === String(idParam) ||
     slugify(prod.name) === targetSlug ||
     slugify(prod.id) === targetSlug
   );
 
-  if (!p) return; // Si no encuentra el producto, se mantiene el catálogo base
+  if (!p && products.length > 0) {
+    p = products[0];
+  }
+
+  if (!p) return;
 
   let settings = null;
   try { settings = await fetchSettings(); } catch (_) {}

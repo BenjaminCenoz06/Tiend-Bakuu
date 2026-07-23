@@ -49,8 +49,12 @@ export async function fetchProducts() {
   const sheetsData = (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data)) ? sheetsResult.data : [];
   const supabaseData = (supabaseResult && Array.isArray(supabaseResult.data)) ? supabaseResult.data : [];
 
-  if (sheetsData.length > 0 || supabaseData.length > 0) {
+  if (sheetsData.length > 0) {
     return mergeSheetsAndSupabaseProducts(sheetsData, supabaseData);
+  }
+
+  if (supabaseData.length > 0) {
+    return mergeSheetsAndSupabaseProducts([], supabaseData);
   }
 
   return [];

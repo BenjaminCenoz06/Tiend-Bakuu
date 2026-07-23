@@ -206,10 +206,7 @@ export async function fetchSheetsProducts(options = {}) {
     const response = await fetch(cacheBustUrl, {
       method: "GET",
       signal: controller.signal,
-      headers: {
-        "Accept": "application/json",
-      },
-      cache: "no-store",
+      redirect: "follow",
     });
 
     clearTimeout(timeoutId);
