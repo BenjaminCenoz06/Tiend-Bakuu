@@ -109,6 +109,11 @@ function renderCatalog(items) {
   if (!grid) return;
 
   if (!items || !items.length) {
+    // Si ya existen tarjetas mostradas en la pantalla, no las pisamos con un error
+    if (grid.querySelectorAll(".card").length > 0) {
+      console.warn("[store-sync] Conservando catálogo en pantalla tras aviso de red.");
+      return;
+    }
     grid.innerHTML = `<div class="sheets-notice" style="grid-column:1/-1;text-align:center;padding:3rem 1rem;color:var(--ink-mute)">
       <p style="margin-bottom:0.5rem;font-size:1.1rem">⚠️ No se pudieron obtener los productos de Google Sheets en este momento.</p>
       <p style="font-size:0.9rem">Por favor, reintentá recargando la página o verificá la conexión con la planilla.</p>

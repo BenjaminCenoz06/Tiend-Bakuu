@@ -193,7 +193,13 @@ export function getCachedSheetsProducts() {
 export async function fetchSheetsProducts(options = {}) {
   const { forceRefresh = false, timeoutMs = 10000, maxRetries = 2 } = options;
 
-  // 1. Si CACHE_TTL_MS > 0, consultar caché de sesión
+  // 1. Copia local de respaldo
+  let localBackup = [];
+  try {
+    localBackup = getCachedSheetsProducts();
+  } catch (_) {}
+
+  // 2. Si no es forceRefresh y tenemos caché de sesión reciente
   if (!forceRefresh && CACHE_TTL_MS > 0) {
     try {
       const cachedStr = sessionStorage.getItem(CACHE_KEY);
@@ -208,12 +214,10 @@ export async function fetchSheetsProducts(options = {}) {
           };
         }
       }
-    } catch (e) {
-      console.warn("[GoogleSheetsService] Error al leer caché de sesión:", e);
-    }
+    } catch (_) {}
   }
 
-  // 2. Realizar petición HTTP directa con reintento automático y timeout holgado (10s)
+  // 3. Realizar petición HTTP directa con reintento automático y timeout holgado (10s)
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -225,7 +229,6 @@ export async function fetchSheetsProducts(options = {}) {
       const response = await fetch(cacheBustUrl, {
         method: "GET",
         signal: controller.signal,
-        redirect: "follow",
       });
 
       clearTimeout(timeoutId);
@@ -234,7 +237,13 @@ export async function fetchSheetsProducts(options = {}) {
         throw new Error(`Respuesta HTTP no válida: status ${response.status}`);
       }
 
-      const rawData = await response.json();
+      const text = await response.text();
+      let rawData;
+      try {
+        rawData = JSON.parse(text);
+      } catch (jsonErr) {
+        throw new Error("La respuesta de la API de Google Sheets no es JSON válido.");
+      }
 
       if (!Array.isArray(rawData)) {
         throw new Error("El formato de respuesta de la API no es un listado de productos.");
@@ -243,7 +252,7 @@ export async function fetchSheetsProducts(options = {}) {
       // Normalizar cada producto
       const products = rawData.map(normalizeSheetProduct).filter(Boolean);
 
-      // Guardar respuesta en localStorage para carga instantánea futura
+      // Guardar respuesta en localStorage y sessionStorage
       try {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(rawData));
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({
@@ -266,10 +275,20 @@ export async function fetchSheetsProducts(options = {}) {
 
       console.warn(`[GoogleSheetsService] Intento ${attempt}/${maxRetries} falló:`, lastError);
       if (attempt < maxRetries) {
-        // Pausa breve de 500ms antes del reintento
-        await new Promise(res => setTimeout(res, 500));
+        await new Promise(res => setTimeout(res, 600));
       }
     }
+  }
+
+  // Si fallan todos los intentos HTTP pero tenemos datos locales, devolverlos para que la web siga funcionando impecable
+  if (localBackup && localBackup.length > 0) {
+    console.warn("[GoogleSheetsService] Sirviendo catálogo desde respaldo local tras fallo de red.");
+    return {
+      success: true,
+      data: localBackup,
+      error: lastError,
+      fromCache: true,
+    };
   }
 
   return {
