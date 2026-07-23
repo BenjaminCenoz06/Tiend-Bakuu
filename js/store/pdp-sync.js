@@ -5,7 +5,7 @@
 //  Soporta IDs numéricos (ID 1, ID 2 de Sheets) y UUIDs.
 //  El botón de compra agrega al carrito e inicia compra vía WhatsApp/MP.
 // =============================================================
-import { fetchSettings, fetchProducts, toStoreProduct } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, toStoreProduct, getCachedSheetsProducts } from "./storefront-data.js";
 import { shop } from "./shop.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -35,11 +35,17 @@ function whenReady() {
   try {
     const rawProds = await fetchProducts();
     products = (rawProds || []).map(toStoreProduct).filter(Boolean);
+    if (!products.length) {
+      const cached = getCachedSheetsProducts();
+      products = (cached || []).map(toStoreProduct).filter(Boolean);
+    }
     if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
       window.BAKU.injectProducts(products);
     }
   } catch (e) {
     console.warn("[pdp-sync] Error al obtener productos:", e);
+    const cached = getCachedSheetsProducts();
+    products = (cached || []).map(toStoreProduct).filter(Boolean);
   }
 
   // Buscar coincidencia por ID (ej. "1"), slug (ej. "hoodie") o ID crudo

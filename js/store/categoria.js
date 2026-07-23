@@ -3,7 +3,7 @@
 //  Muestra los productos de una categoría específica (?slug=buzos)
 //  obtenidos automáticamente desde Google Sheets API.
 // =============================================================
-import { fetchSettings, fetchProducts, toStoreProduct, applyTheme } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, toStoreProduct, applyTheme, getCachedSheetsProducts } from "./storefront-data.js";
 import "./shop.js"; // activa el carrito + botón del header
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -26,15 +26,7 @@ function slugify(s) {
   const grid = document.querySelector("[data-cat-grid]");
   const setText = (sel, v) => { const el = document.querySelector(sel); if (el) el.textContent = v; };
 
-  try {
-    // Obtener productos desde Google Sheets (o fallback)
-    const rawProducts = await fetchProducts();
-    const allProducts = (rawProducts || []).map(toStoreProduct).filter(Boolean);
-    if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
-      window.BAKU.injectProducts(allProducts);
-    }
-
-    // Filtrar productos por el slug de categoría si existe
+  const renderList = (allProducts) => {
     let filteredProducts = allProducts;
     let categoryName = "Todos los productos";
 
@@ -45,7 +37,6 @@ function slugify(s) {
       if (filteredProducts.length > 0) {
         categoryName = filteredProducts[0].categoryName || slugParam.toUpperCase();
       } else {
-        // Formatear nombre de categoría si no hay resultados inmediatos
         categoryName = slugParam.charAt(0).toUpperCase() + slugParam.slice(1);
       }
     }
@@ -57,13 +48,33 @@ function slugify(s) {
 
     if (!filteredProducts || !filteredProducts.length) {
       setText("[data-cat-note]", "Todavía no hay prendas en esta categoría.");
-      grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--ink-mute);padding:3rem 1rem">
-        Pronto vas a encontrar prendas acá. <a href="index.html" style="color:var(--gold);text-decoration:underline">Volver al inicio</a></p>`;
+      if (grid) {
+        grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--ink-mute);padding:3rem 1rem">
+          Pronto vas a encontrar prendas acá. <a href="index.html" style="color:var(--gold);text-decoration:underline">Volver al inicio</a></p>`;
+      }
       return;
     }
 
     setText("[data-cat-note]", filteredProducts.length + (filteredProducts.length === 1 ? " producto" : " productos"));
-    grid.innerHTML = filteredProducts.map(card).join("");
+    if (grid) grid.innerHTML = filteredProducts.map(card).join("");
+  };
+
+  // 1. Mostrar productos en caché local inmediatamente (0ms) si están disponibles
+  try {
+    const cached = getCachedSheetsProducts();
+    if (cached && cached.length) {
+      renderList(cached.map(toStoreProduct).filter(Boolean));
+    }
+  } catch (_) {}
+
+  try {
+    // 2. Obtener productos actualizados desde Google Sheets (o fallback)
+    const rawProducts = await fetchProducts();
+    const allProducts = (rawProducts || []).map(toStoreProduct).filter(Boolean);
+    if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
+      window.BAKU.injectProducts(allProducts);
+    }
+    renderList(allProducts);
   } catch (e) {
     setText("[data-cat-note]", "No se pudieron cargar los productos.");
     console.warn("[categoria]", e);

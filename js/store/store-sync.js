@@ -6,12 +6,20 @@
 //  Es tolerante a fallos: si Supabase no responde, la tienda queda
 //  con su catálogo/branding de base (nunca se rompe).
 // =============================================================
-import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedSheetsProducts } from "./storefront-data.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 (async function syncStorefront() {
+  // 1. Mostrar productos en caché local inmediatamente (0ms) si están disponibles
+  try {
+    const cached = getCachedSheetsProducts();
+    if (cached && cached.length) {
+      renderCatalog(cached.map(toStoreProduct));
+    }
+  } catch (_) {}
+
   try {
     const [settings, products, banners, categories] = await Promise.all([
       fetchSettings().catch(() => null),
@@ -33,11 +41,11 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
       renderCategories(categories);
     }
 
-    if (products && products.length) {
-      renderCatalog(products.map(toStoreProduct));
-    }
+    // Renderizar catálogo con los productos obtenidos en tiempo real
+    renderCatalog((products || []).map(toStoreProduct));
   } catch (e) {
     console.warn("[store-sync]", e);
+    renderCatalog([]);
   }
 })();
 

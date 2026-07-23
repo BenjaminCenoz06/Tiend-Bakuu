@@ -8,6 +8,7 @@
 // =============================================================
 import { supabase } from "../core/client.js";
 import { fetchSheetsProducts, getCachedSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
+export { getCachedSheetsProducts };
 
 /** Trae la configuración pública de la tienda (settings). */
 export async function fetchSettings() {
