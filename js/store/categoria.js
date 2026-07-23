@@ -30,6 +30,9 @@ function slugify(s) {
     // Obtener productos desde Google Sheets (o fallback)
     const rawProducts = await fetchProducts();
     const allProducts = (rawProducts || []).map(toStoreProduct).filter(Boolean);
+    if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
+      window.BAKU.injectProducts(allProducts);
+    }
 
     // Filtrar productos por el slug de categoría si existe
     let filteredProducts = allProducts;

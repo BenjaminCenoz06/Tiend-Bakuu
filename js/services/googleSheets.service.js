@@ -41,11 +41,31 @@ const CATEGORY_ART_MAP = {
 };
 
 /**
+ * Busca un valor en el objeto `raw` soportando variaciones de nombres de columna,
+ * acentos, diferencias de mayúsculas/minúsculas y espacios.
+ */
+function getField(raw, ...keys) {
+  if (!raw || typeof raw !== "object") return undefined;
+  for (const k of keys) {
+    if (raw[k] !== undefined && raw[k] !== null && raw[k] !== "") return raw[k];
+  }
+  const rawKeys = Object.keys(raw);
+  for (const k of keys) {
+    const normK = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    const matchKey = rawKeys.find(rk => {
+      const normRk = rk.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      return normRk === normK;
+    });
+    if (matchKey && raw[matchKey] !== undefined && raw[matchKey] !== null && raw[matchKey] !== "") {
+      return raw[matchKey];
+    }
+  }
+  return undefined;
+}
+
+/**
  * Normaliza una fila cruda recibida de Google Sheets a la estructura
  * estándar de producto de Baku.
- *
- * Futura expansión: Soporta lectura de columnas opcionales como "Color",
- * "Talles", "Variantes", "Imagenes", "Descuento", etc.
  *
  * @param {Object} raw Objeto de producto retornado por Google Sheets API.
  * @returns {Object} Producto normalizado para Baku Store.
@@ -53,58 +73,74 @@ const CATEGORY_ART_MAP = {
 export function normalizeSheetProduct(raw) {
   if (!raw) return null;
 
-  const id = String(raw.ID || raw.id || slugify(raw.Producto || raw.nombre));
-  const name = String(raw.Producto || raw.nombre || "Producto sin nombre");
-  const categoryName = String(raw.Categoría || raw.Categoria || raw.categoria || "Catálogo");
+  const rawId = getField(raw, "ID", "id", "Codigo", "codigo");
+  const name = String(getField(raw, "Producto", "Nombre", "name", "nombre", "Titulo", "titulo") || "Producto sin nombre").trim();
+  const id = String(rawId || slugify(name));
+
+  const categoryName = String(getField(raw, "Categoría", "Categoria", "category", "categoria") || "Catálogo").trim();
   const categorySlug = slugify(categoryName);
 
   // Precios
-  const priceRegular = Number(raw.Precio) || 0;
-  const priceSale = raw["Precio Oferta"] !== "" && raw["Precio Oferta"] != null ? Number(raw["Precio Oferta"]) : null;
+  const priceRegular = Number(getField(raw, "Precio", "precio", "price", "Price")) || 0;
+  const priceSaleVal = getField(raw, "Precio Oferta", "PrecioOferta", "precio_oferta", "Oferta", "oferta", "PrecioDescuento");
+  const priceSale = priceSaleVal !== undefined && priceSaleVal !== null && priceSaleVal !== "" ? Number(priceSaleVal) : null;
 
   const hasDiscount = priceSale !== null && priceSale > 0 && priceSale < priceRegular;
   const currentPrice = hasDiscount ? priceSale : priceRegular;
   const oldPrice = hasDiscount ? priceRegular : null;
 
   // Stock y Estado
-  const stock = raw.Stock !== undefined && raw.Stock !== "" ? Number(raw.Stock) : 0;
-  const estadoStr = String(raw.Estado || "Disponible").trim();
+  const stockVal = getField(raw, "Stock", "stock", "Cantidad", "cantidad");
+  const stock = stockVal !== undefined && stockVal !== "" && stockVal !== null ? Number(stockVal) : 0;
+
+  const estadoStr = String(getField(raw, "Estado", "estado", "Status", "status") || "Disponible").trim();
   const isAvailable = estadoStr.toLowerCase() !== "inactivo" && estadoStr.toLowerCase() !== "oculto" && estadoStr.toLowerCase() !== "desactivado";
 
-  // badge / oferta / descuento automático
+  // Badge automático (Sin Stock / Oferta % / Personalizado)
   let badge = null;
+  const customBadge = getField(raw, "Badge", "badge", "Etiqueta", "etiqueta");
   if (stock === 0) {
     badge = "Sin Stock";
   } else if (hasDiscount) {
     const pct = Math.round(((priceRegular - priceSale) / priceRegular) * 100);
     badge = pct > 0 ? `-${pct}%` : "oferta";
-  } else if (raw.Badge) {
-    badge = String(raw.Badge);
+  } else if (customBadge) {
+    badge = String(customBadge);
   }
 
-  // --- IMÁGENES (Imágenes cargadas desde el Admin o Google Sheets) ---
+  // --- IMÁGENES ---
   let customImage = null;
   try {
     customImage = localStorage.getItem("baku_prod_img_" + id);
   } catch (_) {}
 
-  const mainImage = customImage || raw.Imagen || raw.ImagenPrincipal || (Array.isArray(raw.Imagenes) ? raw.Imagenes[0] : null);
+  const rawImg = getField(raw, "Imagen", "ImagenPrincipal", "Imagenes", "Fotos", "Foto", "image", "img");
+  const mainImage = customImage || (Array.isArray(rawImg) ? rawImg[0] : (rawImg ? String(rawImg).split(",")[0].trim() : null));
   const images = customImage
     ? [customImage]
-    : (Array.isArray(raw.Imagenes)
-      ? raw.Imagenes
-      : (raw.Imagenes ? String(raw.Imagenes).split(",").map(s => s.trim()) : (mainImage ? [mainImage] : [])));
+    : (Array.isArray(rawImg)
+      ? rawImg
+      : (rawImg ? String(rawImg).split(",").map(s => s.trim()).filter(Boolean) : (mainImage ? [mainImage] : [])));
 
-  // Talles / Colores / Variantes
-  const colors = raw.Colores ? String(raw.Colores).split(",").map(s => s.trim()) : (raw.Color ? [raw.Color] : []);
-  const sizes = raw.Talles ? String(raw.Talles).split(",").map(s => s.trim()) : (raw.Talle ? [raw.Talle] : ["S", "M", "L", "XL"]);
+  // Talles y Colores
+  const coloresRaw = getField(raw, "Colores", "Color", "colores", "color", "Colors", "Color");
+  const colors = coloresRaw ? String(coloresRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : [];
+
+  const tallesRaw = getField(raw, "Talles", "Talle", "talles", "talle", "Sizes", "Size", "sizes", "size");
+  const sizes = tallesRaw ? String(tallesRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : ["S", "M", "L", "XL"];
+
+  // Descripciones
+  const desc = String(getField(raw, "Descripción", "Descripcion", "descripcion", "desc", "Description", "description", "Detalle", "detalle") || `${name} — Categoría ${categoryName}. Streetwear Baku.`).trim();
+  const descLarga = String(getField(raw, "DescripciónLarga", "DescripcionLarga", "descripcion_larga", "descLarga", "DetalleLargo") || "").trim();
+  const caracteristicasRaw = getField(raw, "Características", "Caracteristicas", "caracteristicas", "Material", "material");
+  const caracteristicas = caracteristicasRaw ? String(caracteristicasRaw).split(/·|\n/).map(s => s.trim()).filter(Boolean) : [];
 
   // Arte SVG fallback predeterminado por categoría
   const artSvg = CATEGORY_ART_MAP[categorySlug] || "g-tee";
 
   return {
     id: id,
-    rawId: raw.ID,
+    rawId: rawId || id,
     name: name,
     nombre: name,
     price: currentPrice,
@@ -124,9 +160,9 @@ export function normalizeSheetProduct(raw) {
     image: mainImage || null,
     images: images,
     art: artSvg,
-    desc: raw.Descripcion || raw.desc || `${name} — Categoría ${categoryName}. Streetwear Baku.`,
-    descLarga: raw.DescripcionLarga || raw.descLarga || "",
-    caracteristicas: raw.Caracteristicas ? String(raw.Caracteristicas).split("·").map(s => s.trim()) : [],
+    desc: desc,
+    descLarga: descLarga,
+    caracteristicas: caracteristicas,
     variants: raw.Variantes || [],
     fromSheets: true,
   };

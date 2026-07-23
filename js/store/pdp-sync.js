@@ -35,6 +35,9 @@ function whenReady() {
   try {
     const rawProds = await fetchProducts();
     products = (rawProds || []).map(toStoreProduct).filter(Boolean);
+    if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
+      window.BAKU.injectProducts(products);
+    }
   } catch (e) {
     console.warn("[pdp-sync] Error al obtener productos:", e);
   }

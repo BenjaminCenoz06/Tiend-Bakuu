@@ -18,12 +18,31 @@
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const money = (n) => "$" + Number(n).toLocaleString("es-AR");
   const cuotasTxt = (price) => "3 cuotas sin interés de " + money(Math.round(price / 3));
+  function slugify(s) {
+    return String(s || "")
+      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
   function safe(fn, name) { try { fn(); } catch (e) { console.warn("[" + name + "]", e); } }
 
   const data = window.__BRAND__ || { products: [] };
   const AUTH = window.__AUTH__ || null;
   const byId = {};
-  (data.products || []).forEach(p => { byId[p.id] = p; });
+  (data.products || []).forEach(p => { if (p && p.id != null) byId[p.id] = p; });
+
+  // Exponer API para que los productos de Google Sheets actualicen el catálogo interno
+  window.BAKU = window.BAKU || {};
+  window.BAKU.injectProducts = function (prods) {
+    if (!Array.isArray(prods)) return;
+    data.products = prods;
+    prods.forEach(p => {
+      if (p && p.id != null) {
+        byId[p.id] = p;
+        if (p.name) byId[slugify(p.name)] = p;
+        if (p.nombre) byId[slugify(p.nombre)] = p;
+      }
+    });
+  };
 
   /* ---------- Estado persistente ---------- */
   const store = {
