@@ -6,6 +6,7 @@
 // =============================================================
 import { BaseRepository } from "../core/BaseRepository.js";
 import { supabase } from "../core/client.js";
+import { fetchSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
 
 function slugify(s) {
   return String(s || "producto")
@@ -18,13 +19,24 @@ class ProductRepository extends BaseRepository {
     super("products", { orderBy: "orden", ascending: true });
   }
 
-  /** Listado para la tabla del panel: incluye categoría e imágenes. */
-  listTabla() {
-    return this.list({}, {
-      orderBy: "created_at",
-      ascending: false,
-      select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
-    });
+  /** Listado para la tabla del panel: combina imágenes de Supabase con texto/números de Google Sheets. */
+  async listTabla() {
+    const [supabaseRes, sheetsRes] = await Promise.all([
+      this.list({}, {
+        orderBy: "created_at",
+        ascending: false,
+        select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
+      }).catch(() => []),
+      fetchSheetsProducts().catch(() => ({ success: false, data: [] })),
+    ]);
+
+    const supabaseProds = Array.isArray(supabaseRes) ? supabaseRes : [];
+    const sheetsProds = (sheetsRes && sheetsRes.success && sheetsRes.data) ? sheetsRes.data : [];
+
+    if (sheetsProds.length > 0 || supabaseProds.length > 0) {
+      return mergeSheetsAndSupabaseProducts(sheetsProds, supabaseProds);
+    }
+    return supabaseProds;
   }
 
   /** Producto completo con imágenes y variantes (para editar). */
@@ -33,6 +45,23 @@ class ProductRepository extends BaseRepository {
       .select("*, imagenes:product_images(*), variantes:product_variants(*)")
       .eq("id", id).maybeSingle();
     if (error) throw new Error(error.message);
+    if (!data) return null;
+
+    try {
+      const sheetsRes = await fetchSheetsProducts().catch(() => null);
+      if (sheetsRes && sheetsRes.success && sheetsRes.data) {
+        const targetSlug = slugify(data.nombre);
+        const match = sheetsRes.data.find(gp => String(gp.id) === String(id) || slugify(gp.name) === targetSlug);
+        if (match) {
+          data.nombre = match.nombre || data.nombre;
+          data.precio = match.price;
+          if (match.oldPrice) data.precio_anterior = match.oldPrice;
+          data.stock = match.stock;
+          data.activo = match.activo;
+        }
+      }
+    } catch (_) {}
+
     return data;
   }
 

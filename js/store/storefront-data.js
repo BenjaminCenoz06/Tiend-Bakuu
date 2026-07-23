@@ -7,7 +7,7 @@
 //  si Supabase no responde, la tienda sigue con sus datos base.
 // =============================================================
 import { supabase } from "../core/client.js";
-import { fetchSheetsProducts } from "../services/googleSheets.service.js";
+import { fetchSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
 
 /** Trae la configuración pública de la tienda (settings). */
 export async function fetchSettings() {
@@ -33,27 +33,26 @@ export async function fetchBanners() {
 }
 
 /** 
- * Trae los productos activos desde Google Sheets API.
- * Si no responde o falla, realiza fallback tolerante a Supabase / catálogo base.
+ * Trae los productos unificados combinando Google Sheets (textos/precios/stock)
+ * con las imágenes subidas desde el panel Admin en Supabase.
  */
 export async function fetchProducts() {
-  // 1. Intentar obtener productos dinámicos desde la API de Google Sheets
-  const sheetsResult = await fetchSheetsProducts().catch(() => ({ success: false, data: [] }));
-  if (sheetsResult && sheetsResult.success && sheetsResult.data && sheetsResult.data.length > 0) {
-    return sheetsResult.data;
-  }
-
-  // 2. Fallback a Supabase si no se pudieron cargar productos de Google Sheets
-  try {
-    const { data, error } = await supabase
-      .from("products")
+  const [sheetsResult, supabaseResult] = await Promise.all([
+    fetchSheetsProducts().catch(() => ({ success: false, data: [] })),
+    supabase.from("products")
       .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
       .eq("activo", true)
-      .order("orden", { ascending: true });
-    if (!error && data && data.length > 0) {
-      return data;
-    }
-  } catch (_) {}
+      .order("orden", { ascending: true })
+      .catch(() => ({ data: [] })),
+  ]);
+
+  const sheetsData = (sheetsResult && sheetsResult.success && sheetsResult.data) ? sheetsResult.data : [];
+  const supabaseData = (supabaseResult && supabaseResult.data) ? supabaseResult.data : [];
+
+  // Si hay datos de Google Sheets o Supabase, combinarlos de forma transparente
+  if (sheetsData.length > 0 || supabaseData.length > 0) {
+    return mergeSheetsAndSupabaseProducts(sheetsData, supabaseData);
+  }
 
   return [];
 }
