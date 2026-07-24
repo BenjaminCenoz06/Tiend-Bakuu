@@ -15,10 +15,16 @@ export const SHEETS_API_TOKEN = "ad428e1d7fc2a849a7207785ccc83bd4474216d390447db
 const LAST_SYNC_KEY = "baku_sheets_last_sync";
 
 function post_(body) {
+  // Content-Type text/plain => petición "simple" (sin preflight CORS).
+  // mode no-cors => Apps Script redirige a googleusercontent.com y el navegador
+  // no puede leer la respuesta cross-origin; la ESCRITURA igual se ejecuta en el
+  // servidor. Por eso resolvemos con { ok:true } si la request no dio error de red.
   return fetch(SHEETS_API_URL, {
     method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ token: SHEETS_API_TOKEN, ...body }),
-  }).then(r => r.json());
+  }).then(() => ({ ok: true })).catch((e) => ({ ok: false, error: e.message }));
 }
 
 /** Convierte el producto completo (Supabase) al formato que espera el Apps Script. */
