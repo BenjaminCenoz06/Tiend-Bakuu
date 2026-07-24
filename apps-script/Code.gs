@@ -284,6 +284,10 @@ function withSyncLock_(fn) {
  * ============================================================= */
 function supabaseHeaders_() {
   var key = PropertiesService.getScriptProperties().getProperty("SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) {
+    throw new Error('Falta la propiedad del script "SUPABASE_SERVICE_ROLE_KEY". ' +
+      'Cargala en Configuración del proyecto > Propiedades del script con tu llave secreta de Supabase (sb_secret_...).');
+  }
   return {
     apikey: key,
     Authorization: "Bearer " + key,
