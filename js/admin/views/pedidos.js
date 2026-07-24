@@ -53,11 +53,11 @@ export const pedidosView = {
       <thead><tr><th>Pedido</th><th>Cliente</th><th>Total</th><th>Estado</th><th>Fecha</th><th></th></tr></thead>
       <tbody>${rows.map(o => `
         <tr data-id="${o.id}">
-          <td class="td-strong">#${o.numero || "—"}</td>
-          <td class="td-mute">${esc((o.cliente && o.cliente.nombre) || "Sin cliente")}</td>
-          <td class="td-num td-strong">${money(o.total)}</td>
-          <td><span class="pill ${PILL[o.estado] || "pill-off"}">${cap(o.estado)}</span></td>
-          <td class="td-mute">${dateTime(o.created_at)}</td>
+          <td class="td-strong">Pedido #${o.numero || "—"}</td>
+          <td class="td-mute" data-label="Cliente">${esc((o.cliente && o.cliente.nombre) || "Sin cliente")}</td>
+          <td class="td-num td-strong" data-label="Total">${money(o.total)}</td>
+          <td data-label="Estado"><span class="pill ${PILL[o.estado] || "pill-off"}">${cap(o.estado)}</span></td>
+          <td class="td-mute" data-label="Fecha">${dateTime(o.created_at)}</td>
           <td><div class="row-actions" style="align-items:center;gap:.5rem">
             <select class="input" data-estado style="min-height:36px;padding:0 .5rem;font-size:.82rem">
               ${ORDER_STATES.map(s => `<option value="${s}" ${o.estado === s ? "selected" : ""}>${cap(s)}</option>`).join("")}

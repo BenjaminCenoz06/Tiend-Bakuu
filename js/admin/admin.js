@@ -55,6 +55,8 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const openDrawer  = () => { sidebar.classList.add("is-open"); scrim.classList.add("is-open"); };
   const closeDrawer = () => { sidebar.classList.remove("is-open"); scrim.classList.remove("is-open"); };
   $("[data-burger]").addEventListener("click", openDrawer);
+  const moreBtn = $("[data-more]");
+  if (moreBtn) moreBtn.addEventListener("click", openDrawer); // "Más" en la tabbar abre el menú completo
   scrim.addEventListener("click", closeDrawer);
   addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
@@ -67,8 +69,8 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
       // Título de la barra superior
       $("[data-page-title]").textContent = view.title || "Panel";
       document.title = (view.title ? view.title + " · " : "") + "BAKU Panel";
-      // Estado activo del menú
-      $$(".nav-item").forEach(a =>
+      // Estado activo del menú (sidebar + tabbar inferior)
+      $$("[data-route]").forEach(a =>
         a.classList.toggle("is-active", (a.dataset.route || "") === route));
       // Cerrar drawer en móvil + foco al contenido
       closeDrawer();

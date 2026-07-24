@@ -58,8 +58,8 @@ export const clientesView = {
         <tr data-id="${c.id}">
           <td><div class="cell-prod"><span class="avatar" style="width:38px;height:38px">${esc((c.nombre[0] || "?").toUpperCase())}</span>
             <div class="cell-prod-info"><div class="td-strong">${esc(c.nombre)}</div><div class="td-mute">${esc(c.email || "—")}</div></div></div></td>
-          <td class="td-mute">${esc(c.telefono || "—")}</td>
-          <td class="td-mute">${date(c.created_at)}</td>
+          <td class="td-mute" data-label="Teléfono">${esc(c.telefono || "—")}</td>
+          <td class="td-mute" data-label="Alta">${date(c.created_at)}</td>
           <td><div class="row-actions">
             <button class="row-btn" data-hist title="Historial">${ICON.hist}</button>
             <button class="row-btn" data-edit title="Editar">${ICON.edit}</button>

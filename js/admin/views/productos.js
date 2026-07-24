@@ -154,10 +154,10 @@ export const productosView = {
         <div class="td-mute">${p.sku ? esc(p.sku) + " · " : ""}${badges || "&nbsp;"}</div>
         ${colorDots ? `<div style="display:flex;gap:.25rem;margin-top:.3rem">${colorDots}</div>` : ""}
       </div></div></td>
-      <td class="td-mute">${cat}</td>
-      <td>${precio}</td>
-      <td>${stockPill}</td>
-      <td><label class="switch"><input type="checkbox" data-toggle ${p.activo ? "checked" : ""}><span class="switch-track"></span></label></td>
+      <td class="td-mute" data-label="Categoría">${cat}</td>
+      <td data-label="Precio">${precio}</td>
+      <td data-label="Stock">${stockPill}</td>
+      <td data-label="Estado"><label class="switch"><input type="checkbox" data-toggle ${p.activo ? "checked" : ""}><span class="switch-track"></span></label></td>
       <td><div class="row-actions">
         <button class="row-btn" data-edit title="Editar">${ICON.edit}</button>
         <button class="row-btn" data-dup title="Duplicar">${ICON.copy}</button>
