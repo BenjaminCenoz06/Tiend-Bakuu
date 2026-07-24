@@ -7,7 +7,10 @@
 //  Expone window.BAKU_SHOP para que las páginas agreguen productos.
 // =============================================================
 import { fetchSettings } from "./storefront-data.js";
-import { updateStockAfterPurchase } from "../services/googleSheets.service.js";
+import { supabase } from "../core/client.js";
+import { pushStockToSheet } from "../services/sheetsSync.service.js";
+
+const BUYER_KEY = "baku_buyer_info";
 
 const KEY = "baku.cart.v1";
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -34,9 +37,14 @@ const count = () => cart.reduce((a, i) => a + i.qty, 0);
 export const shop = {
   add(item) {
     const talle = item.talle || "";
-    const found = cart.find(i => i.id === item.id && i.talle === talle);
+    const color = item.color || "";
+    const found = cart.find(i => i.id === item.id && i.talle === talle && i.color === color);
     if (found) found.qty += (item.qty || 1);
-    else cart.push({ id: item.id, nombre: item.nombre, precio: Number(item.precio) || 0, imagen: item.imagen || "", talle, qty: item.qty || 1 });
+    else cart.push({
+      id: item.id, slug: item.slug || "", nombre: item.nombre,
+      precio: Number(item.precio) || 0, imagen: item.imagen || "",
+      talle, color, qty: item.qty || 1,
+    });
     persist();
     build(); render(); openCart();
   },
@@ -104,7 +112,7 @@ function render() {
       <div class="drawer-item-art">${it.imagen ? `<img src="${esc(it.imagen)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:4px">` : "🧥"}</div>
       <div>
         <p class="drawer-item-name">${esc(it.nombre)}</p>
-        <p class="drawer-item-meta">${it.talle ? "Talle " + esc(it.talle) : ""}</p>
+        <p class="drawer-item-meta">${[it.talle && "Talle " + it.talle, it.color].filter(Boolean).map(esc).join(" · ")}</p>
         <p class="drawer-item-price">${money(it.precio * it.qty)}</p>
         <span class="drawer-qty">
           <button data-dec="${i}" aria-label="Restar">−</button>
@@ -115,8 +123,13 @@ function render() {
       <div><button class="drawer-item-remove" data-rm="${i}">Quitar</button></div>
     </div>`).join("");
 
+  const buyer = loadBuyer();
   els.foot.innerHTML = `
     <div class="drawer-total"><span>Total</span><strong>${money(total())}</strong></div>
+    <div class="shop-buyer">
+      <input class="input" data-buyer-nombre placeholder="Tu nombre" value="${esc(buyer.nombre)}">
+      <input class="input" data-buyer-whatsapp placeholder="Tu WhatsApp" value="${esc(buyer.whatsapp)}">
+    </div>
     <p class="shop-pay-label">Elegí cómo comprar</p>
     <button class="btn btn-wide shop-wa" data-wa>
       <span class="shop-btn-ico">${LOGO_WA}</span>
@@ -129,22 +142,86 @@ function render() {
     <p class="shop-note">Coordinás envío y pago con la tienda. Sin cargos ocultos.</p>`;
 }
 
+function loadBuyer() {
+  try { return JSON.parse(localStorage.getItem(BUYER_KEY)) || { nombre: "", whatsapp: "" }; }
+  catch (_) { return { nombre: "", whatsapp: "" }; }
+}
+function saveBuyer() {
+  const nombre = els.foot.querySelector("[data-buyer-nombre]")?.value.trim() || "";
+  const whatsapp = els.foot.querySelector("[data-buyer-whatsapp]")?.value.trim() || "";
+  try { localStorage.setItem(BUYER_KEY, JSON.stringify({ nombre, whatsapp })); } catch (_) {}
+  return { nombre, whatsapp };
+}
+
+/**
+ * Registra el pedido en Supabase (crea/actualiza cliente, pedido e
+ * ítems, y descuenta stock de forma atómica). Si algún producto no
+ * tiene stock suficiente, la función tira error y no se descuenta nada.
+ */
+async function createOrderRecord() {
+  const buyer = saveBuyer();
+  const snapshot = {
+    lines: cart.map(it => `• ${it.nombre}${it.talle ? " (Talle " + it.talle + ")" : ""}${it.color ? " (" + it.color + ")" : ""} x${it.qty} — ${money(it.precio * it.qty)}`),
+    total: total(),
+  };
+
+  const { data, error } = await supabase.rpc("create_order", {
+    payload: {
+      cliente: { nombre: buyer.nombre || "Cliente WhatsApp", whatsapp: buyer.whatsapp, email: null },
+      items: cart.map(it => ({ producto_id: it.id, cantidad: it.qty, talle: it.talle, color: it.color })),
+    },
+  });
+  if (error) throw new Error(error.message);
+
+  // Empuja el stock nuevo de cada producto comprado a la planilla espejo.
+  (data?.items || []).forEach(({ producto_id, stock }) => {
+    const item = cart.find(i => String(i.id) === String(producto_id));
+    if (item?.slug) pushStockToSheet(item.slug, stock).catch(() => {});
+  });
+
+  cart = []; persist(); render();
+  return { ...data, snapshot };
+}
+
 /* ---------- Checkout WhatsApp ---------- */
 function waNumber() {
   const w = settings && settings.contacto && settings.contacto.whatsapp;
   return w ? String(w).replace(/\D/g, "") : "5493541231729";
 }
-function orderText() {
-  const lines = cart.map(it => `• ${it.nombre}${it.talle ? " (Talle " + it.talle + ")" : ""} x${it.qty} — ${money(it.precio * it.qty)}`);
-  return `¡Hola BAKU! Quiero hacer este pedido:\n\n${lines.join("\n")}\n\nTotal: ${money(total())}`;
+function orderText(order) {
+  const numero = order?.numero ? ` (Pedido #${order.numero})` : "";
+  return `¡Hola BAKU! Quiero hacer este pedido${numero}:\n\n${order.snapshot.lines.join("\n")}\n\nTotal: ${money(order.snapshot.total)}`;
 }
-function checkoutWhatsApp() {
-  updateStockAfterPurchase(cart);
-  window.open("https://wa.me/" + waNumber() + "?text=" + encodeURIComponent(orderText()), "_blank");
+async function checkoutWhatsApp() {
+  if (!cart.length) return;
+  const btn = els.foot.querySelector("[data-wa]");
+  if (btn) { btn.disabled = true; btn.textContent = "Registrando pedido…"; }
+  try {
+    const order = await createOrderRecord();
+    window.open("https://wa.me/" + waNumber() + "?text=" + encodeURIComponent(orderText(order)), "_blank");
+    closeCart();
+  } catch (e) {
+    alert("No pudimos registrar el pedido: " + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
 }
 
 /* ---------- Checkout Mercado Pago ---------- */
-function checkoutMercadoPago() {
+async function checkoutMercadoPago() {
+  if (!cart.length) return;
+  const btn = els.foot.querySelector("[data-mp]");
+  let order;
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = "Registrando pedido…"; }
+    order = await createOrderRecord();
+  } catch (e) {
+    alert("No pudimos registrar el pedido: " + e.message);
+    return;
+  } finally {
+    if (btn) { btn.disabled = false; }
+  }
+
   const mp = (settings && settings.contacto && settings.contacto.mercadopago) || "";
   const esLink = /^https?:\/\//i.test(mp);
   const dlg = document.createElement("dialog");
@@ -158,7 +235,7 @@ function checkoutMercadoPago() {
 
       <div class="mp-amount">
         <span>Total a pagar</span>
-        <strong>${money(total())}</strong>
+        <strong>${money(order.snapshot.total)}</strong>
       </div>
 
       ${mp ? (esLink
@@ -166,7 +243,7 @@ function checkoutMercadoPago() {
              <span class="shop-btn-ico">${LOGO_MP}</span><span>Ir a pagar a Mercado&nbsp;Pago</span></a>
            <p class="mp-hint">Se abre el checkout seguro de Mercado&nbsp;Pago en una pestaña nueva.</p>`
         : `<div class="mp-steps">
-             <div class="mp-step"><span class="mp-step-n">1</span><p>Transferí <strong>${money(total())}</strong> a este Mercado&nbsp;Pago:</p></div>
+             <div class="mp-step"><span class="mp-step-n">1</span><p>Transferí <strong>${money(order.snapshot.total)}</strong> a este Mercado&nbsp;Pago:</p></div>
              <div class="mp-alias">
                <code data-alias>${esc(mp)}</code>
                <button class="mp-copy" data-copy aria-label="Copiar">Copiar</button>
@@ -191,9 +268,10 @@ function checkoutMercadoPago() {
     catch (_) { const r = document.createRange(); r.selectNode(dlg.querySelector("[data-alias]")); getSelection().removeAllRanges(); getSelection().addRange(r); }
   });
   dlg.querySelector("[data-confirm]").addEventListener("click", () => {
-    const msg = orderText() + `\n\nVoy a pagar con Mercado Pago${mp && !esLink ? " (" + mp + ")" : ""} y te envío el comprobante.`;
+    const msg = orderText(order) + `\n\nVoy a pagar con Mercado Pago${mp && !esLink ? " (" + mp + ")" : ""} y te envío el comprobante.`;
     window.open("https://wa.me/" + waNumber() + "?text=" + encodeURIComponent(msg), "_blank");
     close();
+    closeCart();
   });
   dlg.addEventListener("click", e => { if (e.target === dlg) close(); });
 }

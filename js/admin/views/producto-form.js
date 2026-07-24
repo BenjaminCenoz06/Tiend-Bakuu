@@ -8,6 +8,7 @@ import { StorageService } from "../../core/storage.service.js";
 import { openModal } from "../../core/ui/modal.js";
 import { toast } from "../../core/ui/toast.js";
 import { esc } from "../../core/format.js";
+import { getColorHex } from "../../core/colorDictionary.js";
 
 const X = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 const STAR = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.3 4.3 13.3l.7-4.3-3.1-3 4.3-.6z" fill="currentColor"/></svg>';
@@ -26,6 +27,8 @@ export async function openProductForm(productId, onSaved) {
     variantes: (prod?.variantes || []).map(v => ({ color: v.color || "", color_hex: v.color_hex || "#E8A63B", talle: v.talle || "", stock: v.stock || 0 })),
     caracteristicas: Array.isArray(prod?.caracteristicas) ? prod.caracteristicas.slice() : [],
     etiquetas: Array.isArray(prod?.etiquetas) ? prod.etiquetas.slice() : [],
+    talles: Array.isArray(prod?.talles) ? prod.talles.slice() : [],
+    colores: Array.isArray(prod?.colores) ? prod.colores.slice() : [],
   };
 
   const v = (k, d = "") => (prod && prod[k] != null ? prod[k] : d);
@@ -47,6 +50,14 @@ export async function openProductForm(productId, onSaved) {
       <div class="field">
         <label for="f-marca">Marca</label>
         <input class="input" id="f-marca" name="marca" value="${esc(v("marca"))}" placeholder="BAKU">
+      </div>
+      <div class="field">
+        <label for="f-slug">Slug (URL) <span class="td-mute">(vacío = automático)</span></label>
+        <input class="input" id="f-slug" name="slug" value="${esc(v("slug"))}" placeholder="hoodie-bruma">
+      </div>
+      <div class="field">
+        <label for="f-orden">Orden</label>
+        <input class="input" id="f-orden" name="orden" type="number" value="${esc(v("orden", 0))}">
       </div>
 
       <div class="field">
@@ -100,7 +111,36 @@ export async function openProductForm(productId, onSaved) {
         <input class="input" data-chip-input="etiquetas" placeholder="Escribí y Enter (ej: invierno)">
       </div>
 
-      <div class="form-section-title">Colores y talles (variantes)</div>
+      <div class="form-section-title">Talles y colores</div>
+      <div class="field col-2">
+        <label>Talles <span class="td-mute">(ej: S, M, L, XL o 38, 40, 42 o Único)</span></label>
+        <div class="chips" data-chips="talles"></div>
+        <input class="input" data-chip-input="talles" placeholder="Escribí un talle y Enter">
+      </div>
+      <div class="field col-2">
+        <label>Colores <span class="td-mute">(nombre en español, ej: Negro — el círculo sale solo)</span></label>
+        <div class="chips" data-chips="colores"></div>
+        <input class="input" data-chip-input="colores" placeholder="Escribí un color y Enter">
+      </div>
+
+      <div class="form-section-title">Datos adicionales</div>
+      <div class="field">
+        <label for="f-peso">Peso (kg)</label>
+        <input class="input" id="f-peso" name="peso" type="number" min="0" step="0.01" value="${esc(v("peso"))}">
+      </div>
+      <div class="field">
+        <label for="f-material">Material</label>
+        <input class="input" id="f-material" name="material" value="${esc(v("material"))}" placeholder="Algodón 100%">
+      </div>
+      <div class="field col-2">
+        <label for="f-genero">Género</label>
+        <select class="input" id="f-genero" name="genero">
+          <option value="">— Sin especificar —</option>
+          ${["Hombre", "Mujer", "Unisex"].map(g => `<option value="${g}" ${v("genero") === g ? "selected" : ""}>${g}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="form-section-title">Variantes avanzadas <span class="td-mute">(opcional: stock por color + talle)</span></div>
       <div class="col-2" data-variants></div>
       <div class="col-2"><button type="button" class="btn btn-ghost" data-add-variant>+ Agregar variante</button></div>
 
@@ -164,13 +204,13 @@ export async function openProductForm(productId, onSaved) {
     renderImages();
   });
 
-  /* ---- Chips (características / etiquetas) ---- */
-  ["caracteristicas", "etiquetas"].forEach(key => {
+  /* ---- Chips (características / etiquetas / talles / colores) ---- */
+  ["caracteristicas", "etiquetas", "talles", "colores"].forEach(key => {
     const cont = body.querySelector(`[data-chips="${key}"]`);
     const input = body.querySelector(`[data-chip-input="${key}"]`);
     const render = () => {
-      cont.innerHTML = st[key].map((t, i) =>
-        `<span class="chip">${esc(t)}<button type="button" data-rm="${i}">${X}</button></span>`).join("");
+      cont.innerHTML = st[key].map((t, i) => `<span class="chip">
+        ${key === "colores" ? `<span class="color-dot" style="--dot:${esc(getColorHex(t))}"></span> ` : ""}${esc(t)}<button type="button" data-rm="${i}">${X}</button></span>`).join("");
     };
     render();
     input.addEventListener("keydown", (e) => {
@@ -230,6 +270,8 @@ export async function openProductForm(productId, onSaved) {
       nombre: fd.get("nombre").trim(),
       sku: fd.get("sku").trim() || null,
       marca: fd.get("marca").trim() || null,
+      slug: fd.get("slug").trim() || (editing ? prod?.slug : null) || null,
+      orden: Number(fd.get("orden")) || 0,
       categoria_id: fd.get("categoria_id") || null,
       precio: Number(fd.get("precio")) || 0,
       precio_anterior: numOrNull(fd.get("precio_anterior")),
@@ -239,6 +281,11 @@ export async function openProductForm(productId, onSaved) {
       descripcion_larga: fd.get("descripcion_larga").trim() || null,
       caracteristicas: st.caracteristicas,
       etiquetas: st.etiquetas,
+      talles: st.talles,
+      colores: st.colores,
+      peso: numOrNull(fd.get("peso")),
+      material: fd.get("material").trim() || null,
+      genero: fd.get("genero") || null,
       activo: form.querySelector('[name="activo"]').checked,
       destacado: form.querySelector('[name="destacado"]').checked,
       nuevo: form.querySelector('[name="nuevo"]').checked,

@@ -577,7 +577,8 @@
     input.addEventListener("input", () => {
       const q = input.value.trim().toLowerCase();
       const list = !q ? [] : (data.products || []).filter(p =>
-        (p.name + " " + p.color + " " + p.category).toLowerCase().includes(q));
+        (p.name + " " + p.color + " " + p.category + " " + p.categoryName + " " + (p.desc || "") + " " + (p.etiquetas || []).join(" "))
+          .toLowerCase().includes(q));
       render(list, q);
     });
   }

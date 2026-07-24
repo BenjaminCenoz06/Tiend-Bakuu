@@ -7,8 +7,20 @@
 //  si Supabase no responde, la tienda sigue con sus datos base.
 // =============================================================
 import { supabase } from "../core/client.js";
-import { fetchSheetsProducts, getCachedSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
-export { getCachedSheetsProducts };
+
+const PRODUCTS_CACHE_KEY = "baku_last_products_v3";
+
+/** Últimos productos conocidos (para pintar la grilla en 0ms mientras llega la respuesta real). */
+export function getCachedProducts() {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (_) { return []; }
+}
+
+function setCachedProducts(list) {
+  try { localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(list)); } catch (_) {}
+}
 
 /** Trae la configuración pública de la tienda (settings). */
 export async function fetchSettings() {
@@ -33,35 +45,24 @@ export async function fetchBanners() {
   return data || [];
 }
 
-/** 
- * Trae los productos activos desde Google Sheets API en tiempo real.
- * Si no responde o falla la conexión, realiza un fallback tolerante a Supabase.
+/**
+ * Trae los productos activos desde Supabase — única fuente de verdad
+ * (Google Sheets es un espejo sincronizado, ya no hace falta leerlo
+ * en cada carga de página: ver js/services/sheetsSync.service.js).
+ * Si falla la conexión, devuelve el último catálogo conocido en caché.
  */
 export async function fetchProducts() {
-  const [sheetsResult, supabaseResult] = await Promise.all([
-    fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] })),
-    supabase.from("products")
-      .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
-      .eq("activo", true)
-      .order("orden", { ascending: true })
-      .catch(() => ({ data: [] })),
-  ]);
+  const { data, error } = await supabase.from("products")
+    .select("*, categoria:categories(nombre,slug), imagenes:product_images(url,orden,es_principal), variantes:product_variants(color,color_hex,talle,stock)")
+    .eq("activo", true)
+    .order("orden", { ascending: true });
 
-  let sheetsData = (sheetsResult && sheetsResult.success && Array.isArray(sheetsResult.data)) ? sheetsResult.data : [];
-  if (!sheetsData.length) {
-    sheetsData = getCachedSheetsProducts();
+  if (error || !data) {
+    console.warn("[storefront-data] fetchProducts:", error?.message);
+    return getCachedProducts();
   }
-  const supabaseData = (supabaseResult && Array.isArray(supabaseResult.data)) ? supabaseResult.data : [];
-
-  if (sheetsData.length > 0) {
-    return mergeSheetsAndSupabaseProducts(sheetsData, supabaseData);
-  }
-
-  if (supabaseData.length > 0) {
-    return mergeSheetsAndSupabaseProducts([], supabaseData);
-  }
-
-  return [];
+  setCachedProducts(data);
+  return data;
 }
 
 /** Aplica los colores del panel como variables CSS + overrides del sitio. */
@@ -147,31 +148,36 @@ export function applyHeroBanners(banners) {
 export function toStoreProduct(p) {
   if (!p) return null;
 
-  // Si ya proviene de Google Sheets y fue normalizado por googleSheets.service.js
-  if (p.fromSheets) {
-    return p;
-  }
-
-  // De lo contrario, normalizar producto de Supabase
   const imgs = (p.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
   const principal = imgs.find(i => i.es_principal) || imgs[0];
+  const variantColors = [...new Set((p.variantes || []).map(v => v.color).filter(Boolean))];
+  const colors = variantColors.length ? variantColors : (Array.isArray(p.colores) ? p.colores : []);
+  const sizes = (p.sizes && p.sizes.length) ? p.sizes
+    : [...new Set((p.variantes || []).map(v => v.talle).filter(Boolean))].length
+      ? [...new Set((p.variantes || []).map(v => v.talle).filter(Boolean))]
+      : (Array.isArray(p.talles) ? p.talles : []);
+
   return {
     id: String(p.id),
+    slug: p.slug || null,
     name: p.nombre || p.name,
     price: Number(p.precio_oferta || p.precio || p.price),
     oldPrice: p.precio_anterior ? Number(p.precio_anterior) : (p.precio_oferta ? Number(p.precio) : (p.oldPrice || null)),
-    color: (p.variantes && p.variantes[0] && p.variantes[0].color) || p.color || "",
+    color: colors[0] || p.color || "",
+    colors: colors,
     category: (p.categoria && p.categoria.slug) || p.category || "",
     categoryName: (p.categoria && p.categoria.nombre) || p.categoryName || "",
-    sizes: p.sizes || [...new Set((p.variantes || []).map(v => v.talle).filter(Boolean))],
+    sizes: sizes,
     desc: p.descripcion || p.desc || "",
     descLarga: p.descripcion_larga || p.descLarga || "",
     caracteristicas: Array.isArray(p.caracteristicas) ? p.caracteristicas : [],
+    etiquetas: Array.isArray(p.etiquetas) ? p.etiquetas : [],
     image: principal ? principal.url : (p.image || null),
     images: imgs.length ? imgs.map(i => i.url) : (p.images || []),
     badge: p.en_oferta ? "oferta" : (p.nuevo ? "nuevo" : (p.badge || null)),
     destacado: !!p.destacado,
     stock: p.stock,
+    activo: p.activo,
     art: p.art || "g-tee",
   };
 }

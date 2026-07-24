@@ -641,6 +641,48 @@ html.no-js .reveal { opacity: 1; transform: none; }
   color: var(--ink-mute);
   margin-top: 0.4rem;
 }
+.card-colors { display: flex; gap: 0.3rem; margin-top: 0.3rem; }
+.color-dot {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--dot);
+  border: 1px solid var(--paper, #fff);
+  outline: 1px solid var(--line, var(--ink-mute));
+  display: inline-block;
+}
+.color-dot.is-more {
+  width: auto; height: auto; border: none; outline: none; border-radius: 0;
+  font-size: 0.68rem; color: var(--ink-mute); line-height: 13px;
+}
+
+/* ---- Filtros de categoría ---- */
+.cat-filters {
+  display: flex; flex-wrap: wrap; gap: 0.6rem;
+  align-items: center;
+  margin: 0 0 1.6rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--ink-mute);
+}
+.cat-filters select,
+.cat-filters .cat-filter-price {
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--ink-mute);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.cat-filter-reset {
+  font-size: 0.75rem;
+  color: var(--ink-mute);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none; border: none;
+  padding: 0.4rem 0;
+}
+.cat-filter-reset:hover { color: var(--ink); }
 
 /* =============================================================
    6. SECCIONES
@@ -3057,6 +3099,23 @@ button.auth-stat:hover { transform: translateY(-2px); }
 .shop-scrim.is-open { opacity: 1; visibility: visible; transition-delay: 0s; }
 
 .drawer.shop-cart { z-index: 260; }
+
+.shop-buyer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.8rem 0;
+}
+.shop-buyer input {
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--ink-mute);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 2px;
+}
+.shop-buyer input:focus { outline: none; border-color: var(--ink); }
 
 .shop-pay-label {
   font-family: var(--mono);

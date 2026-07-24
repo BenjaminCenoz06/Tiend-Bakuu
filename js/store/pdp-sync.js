@@ -5,7 +5,8 @@
 //  Soporta IDs numéricos (ID 1, ID 2 de Sheets) y UUIDs.
 //  El botón de compra agrega al carrito e inicia compra vía WhatsApp/MP.
 // =============================================================
-import { fetchSettings, fetchProducts, toStoreProduct, getCachedSheetsProducts } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, toStoreProduct, getCachedProducts } from "./storefront-data.js";
+import { getColorHex } from "../core/colorDictionary.js";
 import { shop } from "./shop.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -36,7 +37,7 @@ function whenReady() {
     const rawProds = await fetchProducts();
     products = (rawProds || []).map(toStoreProduct).filter(Boolean);
     if (!products.length) {
-      const cached = getCachedSheetsProducts();
+      const cached = getCachedProducts();
       products = (cached || []).map(toStoreProduct).filter(Boolean);
     }
     if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
@@ -44,7 +45,7 @@ function whenReady() {
     }
   } catch (e) {
     console.warn("[pdp-sync] Error al obtener productos:", e);
-    const cached = getCachedSheetsProducts();
+    const cached = getCachedProducts();
     products = (cached || []).map(toStoreProduct).filter(Boolean);
   }
 
@@ -149,7 +150,12 @@ function render(p, settings, allProducts) {
   const colorLabel = document.querySelector("[data-pdp-colorname]");
   if (colors) {
     if (colorList.length) {
-      colors.innerHTML = colorList.map((c, i) => `<button class="pdp-color ${i === 0 ? "is-active" : ""}" style="--dot:#888" title="${esc(c)}"></button>`).join("");
+      colors.innerHTML = colorList.map((c, i) => `<button class="pdp-color ${i === 0 ? "is-active" : ""}" style="--dot:${esc(getColorHex(c))}" title="${esc(c)}"></button>`).join("");
+      colors.addEventListener("click", (e) => {
+        const b = e.target.closest(".pdp-color"); if (!b) return;
+        colors.querySelectorAll(".pdp-color").forEach(x => x.classList.toggle("is-active", x === b));
+        if (colorLabel) colorLabel.textContent = colorList[[...colors.children].indexOf(b)];
+      });
       if (colorLabel) colorLabel.textContent = colorList[0];
     } else { colors.innerHTML = ""; if (colorLabel) colorLabel.textContent = "Único"; }
   }
@@ -172,13 +178,16 @@ function render(p, settings, allProducts) {
       return;
     }
     const talle = document.querySelector("[data-pdp-sizes] .is-selected")?.textContent || "";
+    const color = document.querySelector("[data-pdp-colors] .is-active")?.title || "";
     const qty = parseInt(document.querySelector("[data-pdp-qty-out]")?.textContent || "1", 10) || 1;
     shop.add({
       id: p.id,
+      slug: p.slug || "",
       nombre: p.name || p.nombre,
       precio: precio,
       imagen: p.image || "",
       talle: talle,
+      color: color,
       qty: qty
     });
   };

@@ -3,10 +3,14 @@
 //  Hereda el CRUD del BaseRepository y agrega el manejo del
 //  "agregado" producto = datos + imágenes + variantes (color/talle).
 //  Guardar/duplicar sincronizan las relaciones en una sola operación.
+//  Toda escritura exitosa se replica además a Google Sheets
+//  (ver js/services/sheetsSync.service.js) para que el espejo
+//  quede al día sin intervención manual.
 // =============================================================
 import { BaseRepository } from "../core/BaseRepository.js";
 import { supabase } from "../core/client.js";
-import { fetchSheetsProducts, getCachedSheetsProducts, mergeSheetsAndSupabaseProducts } from "../services/googleSheets.service.js";
+import { categoryRepo } from "./category.repo.js";
+import { pushProductToSheet, deleteProductFromSheet } from "../services/sheetsSync.service.js";
 
 function slugify(s) {
   return String(s || "producto")
@@ -19,52 +23,21 @@ class ProductRepository extends BaseRepository {
     super("products", { orderBy: "orden", ascending: true });
   }
 
-  /** Listado para la tabla del panel Admin: muestra los productos dinámicos de Google Sheets. */
+  /** Listado para la tabla del panel Admin. Supabase es la única fuente. */
   async listTabla() {
-    const [supabaseRes, sheetsRes] = await Promise.all([
-      this.list({}, {
-        orderBy: "created_at",
-        ascending: false,
-        select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
-      }).catch(() => []),
-      fetchSheetsProducts({ forceRefresh: true }).catch(() => ({ success: false, data: [] })),
-    ]);
-
-    const supabaseProds = Array.isArray(supabaseRes) ? supabaseRes : [];
-    let sheetsProds = (sheetsRes && sheetsRes.success && Array.isArray(sheetsRes.data)) ? sheetsRes.data : [];
-    if (!sheetsProds.length) {
-      sheetsProds = getCachedSheetsProducts();
-    }
-
-    if (sheetsProds.length > 0 || supabaseProds.length > 0) {
-      return mergeSheetsAndSupabaseProducts(sheetsProds, supabaseProds);
-    }
-    return supabaseProds;
+    return this.list({}, {
+      orderBy: "created_at",
+      ascending: false,
+      select: "*, categoria:categories(nombre), imagenes:product_images(url,es_principal,orden)",
+    });
   }
 
-  /** Producto completo con imágenes y variantes (para editar). */
+  /** Producto completo con imágenes, variantes y categoría (para editar). */
   async getFull(id) {
     const { data, error } = await supabase.from("products")
-      .select("*, imagenes:product_images(*), variantes:product_variants(*)")
+      .select("*, categoria:categories(nombre), imagenes:product_images(*), variantes:product_variants(*)")
       .eq("id", id).maybeSingle();
     if (error) throw new Error(error.message);
-    if (!data) return null;
-
-    try {
-      const sheetsRes = await fetchSheetsProducts().catch(() => null);
-      if (sheetsRes && sheetsRes.success && sheetsRes.data) {
-        const targetSlug = slugify(data.nombre);
-        const match = sheetsRes.data.find(gp => String(gp.id) === String(id) || slugify(gp.name) === targetSlug);
-        if (match) {
-          data.nombre = match.nombre || data.nombre;
-          data.precio = match.price;
-          if (match.oldPrice) data.precio_anterior = match.oldPrice;
-          data.stock = match.stock;
-          data.activo = match.activo;
-        }
-      }
-    } catch (_) {}
-
     return data;
   }
 
@@ -88,6 +61,7 @@ class ProductRepository extends BaseRepository {
     }
     await this._syncImages(id, imagenes);
     await this._syncVariants(id, variantes);
+    await this._pushToSheet(id);
     return id;
   }
 
@@ -120,11 +94,21 @@ class ProductRepository extends BaseRepository {
     }
   }
 
+  /** Empuja el producto (con su nombre de categoría e imágenes) a Google Sheets. No bloqueante. */
+  async _pushToSheet(id) {
+    try {
+      const full = await this.getFull(id);
+      if (full) {
+        pushProductToSheet({ ...full, categoriaNombre: full.categoria?.nombre }).catch(() => {});
+      }
+    } catch (_) {}
+  }
+
   /** Duplica un producto con sus imágenes y variantes (queda inactivo). */
   async duplicateFull(id) {
     const full = await this.getFull(id);
     if (!full) throw new Error("Producto no encontrado");
-    const { id: _i, created_at, updated_at, imagenes, variantes, ...base } = full;
+    const { id: _i, created_at, updated_at, imagenes, variantes, categoria, ...base } = full;
     base.nombre = base.nombre + " (copia)";
     base.slug = slugify(base.nombre) + "-" + Math.random().toString(36).slice(2, 8);
     base.activo = false;
@@ -134,11 +118,56 @@ class ProductRepository extends BaseRepository {
     const vars = (variantes || []).map(v => ({ color: v.color, color_hex: v.color_hex, talle: v.talle, stock: v.stock }));
     await this._syncImages(created.id, imgs);
     await this._syncVariants(created.id, vars);
+    await this._pushToSheet(created.id);
     return created.id;
   }
 
   /** Activa / desactiva rápido desde la tabla. */
-  setActivo(id, activo) { return this.update(id, { activo }); }
+  async setActivo(id, activo) {
+    const updated = await this.update(id, { activo });
+    this._pushToSheet(id).catch(() => {});
+    return updated;
+  }
+
+  /** Elimina el producto y su fila espejo en Sheets. */
+  async remove(id) {
+    const existing = await this.get(id, "slug");
+    await super.remove(id);
+    if (existing?.slug) deleteProductFromSheet(existing.slug).catch(() => {});
+    return true;
+  }
+
+  /**
+   * Crea o actualiza un producto a partir de una fila normalizada de
+   * Google Sheets (ver sheetsSync.service.js#pullAllFromSheet).
+   * Resuelve/crea la categoría por nombre, igual que hace el Apps Script
+   * del lado del servidor para la dirección Sheet -> Supabase.
+   */
+  async upsertFromSheet(sheetFields) {
+    const { categoriaNombre, images, ...rest } = sheetFields;
+    const payload = { ...rest };
+
+    if (categoriaNombre) {
+      payload.categoria_id = await this._resolveCategoriaId(categoriaNombre);
+    }
+
+    const existing = await this.getBy("slug", payload.slug, "id");
+    if (existing) {
+      await this.update(existing.id, payload);
+      if (images && images.length) await this._syncImages(existing.id, images.map(url => ({ url })));
+      return existing.id;
+    }
+    const created = await this.create(payload);
+    if (images && images.length) await this._syncImages(created.id, images.map(url => ({ url })));
+    return created.id;
+  }
+
+  async _resolveCategoriaId(nombre) {
+    const found = await categoryRepo.getBy("nombre", nombre, "id");
+    if (found) return found.id;
+    const created = await categoryRepo.create({ nombre, slug: slugify(nombre) });
+    return created.id;
+  }
 
   countActivos() { return this.count({ activo: true }); }
 }

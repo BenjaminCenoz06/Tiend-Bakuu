@@ -6,7 +6,8 @@
 //  Es tolerante a fallos: si Supabase no responde, la tienda queda
 //  con su catálogo/branding de base (nunca se rompe).
 // =============================================================
-import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedSheetsProducts } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts } from "./storefront-data.js";
+import { getColorHex } from "../core/colorDictionary.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -14,7 +15,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
 (async function syncStorefront() {
   // 1. Mostrar productos en caché local inmediatamente (0ms) si están disponibles
   try {
-    const cached = getCachedSheetsProducts();
+    const cached = getCachedProducts();
     if (cached && cached.length) {
       renderCatalog(cached.map(toStoreProduct));
     }
@@ -161,6 +162,15 @@ function card(p) {
     <div class="card-info">
       <div class="card-row"><h3 class="card-name"><a href="producto.html?id=${esc(p.id)}">${esc(p.name)}</a></h3><p class="card-price">${price}</p></div>
       <p class="card-color">${esc(p.categoryName || p.color || "")}</p>
+      ${colorDots(p.colors)}
     </div>
   </article>`;
+}
+
+function colorDots(colors) {
+  if (!colors || !colors.length) return "";
+  const shown = colors.slice(0, 4);
+  const dots = shown.map(c => `<span class="color-dot" style="--dot:${esc(getColorHex(c))}" title="${esc(c)}"></span>`).join("");
+  const extra = colors.length > shown.length ? `<span class="color-dot is-more">+${colors.length - shown.length}</span>` : "";
+  return `<div class="card-colors">${dots}${extra}</div>`;
 }

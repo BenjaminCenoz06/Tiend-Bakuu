@@ -7,7 +7,9 @@ import { categoryRepo } from "../../repositories/category.repo.js";
 import { openProductForm } from "./producto-form.js";
 import { confirmDialog } from "../../core/ui/confirm.js";
 import { toast } from "../../core/ui/toast.js";
-import { money, esc } from "../../core/format.js";
+import { money, esc, dateTime } from "../../core/format.js";
+import { getColorHex } from "../../core/colorDictionary.js";
+import { pullAllFromSheet, getLastSync } from "../../services/sheetsSync.service.js";
 
 const ICON = {
   box:  '<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zm0 0v10l9 4 9-4V7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
@@ -32,8 +34,10 @@ export const productosView = {
         <select class="input" data-filter-estado>
           <option value="">Todos</option><option value="1">Activos</option><option value="0">Inactivos</option>
         </select>
+        <button class="btn btn-ghost" data-sync title="Trae los últimos cambios hechos a mano en la planilla">⟳ Sincronizar con Sheets</button>
         <button class="btn" data-new>+ Nuevo producto</button>
       </div>
+      <p class="field-hint" data-sync-note style="margin:-0.6rem 0 0.8rem"></p>
       <div data-list><div class="table-wrap"><div class="empty"><strong>Cargando…</strong></div></div></div>`;
 
     el.querySelector("[data-new]").addEventListener("click", () =>
@@ -41,12 +45,38 @@ export const productosView = {
     el.querySelector("[data-q]").addEventListener("input", () => this._paint());
     el.querySelector("[data-filter-cat]").addEventListener("change", () => this._paint());
     el.querySelector("[data-filter-estado]").addEventListener("change", () => this._paint());
+    el.querySelector("[data-sync]").addEventListener("click", () => this._onSync());
 
     // Delegación de acciones de la tabla
     el.querySelector("[data-list]").addEventListener("click", (e) => this._onAction(e));
     el.querySelector("[data-list]").addEventListener("change", (e) => this._onToggle(e));
 
+    this._paintSyncNote();
     await this._reload();
+  },
+
+  _paintSyncNote() {
+    const note = this.el.querySelector("[data-sync-note]");
+    const last = getLastSync();
+    if (note) note.textContent = last ? `Última sincronización con Sheets: ${dateTime(last)}` : "Todavía no sincronizaste con Sheets.";
+  },
+
+  async _onSync() {
+    const btn = this.el.querySelector("[data-sync]");
+    btn.disabled = true; btn.classList.add("is-loading");
+    try {
+      const rows = await pullAllFromSheet();
+      for (const row of rows) {
+        await productRepo.upsertFromSheet(row).catch((err) => console.warn("[sync]", row.slug, err.message));
+      }
+      toast(`Sincronizado: ${rows.length} producto(s) desde Sheets`, "ok");
+      this._paintSyncNote();
+      await this._reload();
+    } catch (err) {
+      toast("No se pudo sincronizar: " + err.message, "error");
+    } finally {
+      btn.disabled = false; btn.classList.remove("is-loading");
+    }
   },
 
   async _reload() {
@@ -116,10 +146,13 @@ export const productosView = {
       p.destacado ? '<span class="pill pill-warn">Destacado</span>' : "",
       p.nuevo ? '<span class="pill pill-info">Nuevo</span>' : "",
     ].filter(Boolean).join(" ");
+    const colorDots = (Array.isArray(p.colores) ? p.colores : []).slice(0, 5)
+      .map(c => `<span class="color-dot" style="--dot:${esc(getColorHex(c))}" title="${esc(c)}"></span>`).join("");
     return `<tr data-id="${p.id}">
       <td><div class="cell-prod">${thumb}<div class="cell-prod-info">
         <div class="td-strong">${esc(p.nombre)}</div>
         <div class="td-mute">${p.sku ? esc(p.sku) + " · " : ""}${badges || "&nbsp;"}</div>
+        ${colorDots ? `<div style="display:flex;gap:.25rem;margin-top:.3rem">${colorDots}</div>` : ""}
       </div></div></td>
       <td class="td-mute">${cat}</td>
       <td>${precio}</td>

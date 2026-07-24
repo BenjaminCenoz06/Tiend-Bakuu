@@ -511,6 +511,11 @@
 .chip button { display: grid; place-items: center; color: var(--text-mute); width: 16px; height: 16px; border-radius: 50%; }
 .chip button:hover { background: var(--danger-bg); color: var(--danger); }
 .chip svg { width: 11px; height: 11px; }
+.color-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--dot); display: inline-block;
+  outline: 1px solid var(--border);
+}
 
 /* ---------- Variantes (color + talle + stock) ---------- */
 .variant-row {

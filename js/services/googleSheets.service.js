@@ -114,7 +114,12 @@ export function normalizeSheetProduct(raw) {
     customImage = localStorage.getItem("baku_prod_img_" + id);
   } catch (_) {}
 
-  const rawImg = getField(raw, "Imagen", "ImagenPrincipal", "Imagenes", "Fotos", "Foto", "image", "img");
+  const imgCols = ["Imagen 1", "Imagen 2", "Imagen 3", "Imagen 4"]
+    .map(k => String(getField(raw, k) || "").trim())
+    .filter(u => /^https?:\/\//i.test(u)); // ignora celdas placeholder ("URL", vacías)
+  const rawImg = imgCols.length
+    ? imgCols
+    : getField(raw, "Imagen", "ImagenPrincipal", "Imagenes", "Fotos", "Foto", "image", "img");
   const mainImage = customImage || (Array.isArray(rawImg) ? rawImg[0] : (rawImg ? String(rawImg).split(",")[0].trim() : null));
   const images = customImage
     ? [customImage]
@@ -138,9 +143,42 @@ export function normalizeSheetProduct(raw) {
   // Arte SVG fallback predeterminado por categoría
   const artSvg = CATEGORY_ART_MAP[categorySlug] || "g-tee";
 
+  // Campos adicionales de administración (paridad con el panel)
+  const sku = String(getField(raw, "SKU", "sku", "Codigo", "codigo") || "").trim() || null;
+  const rawSlug = String(getField(raw, "Slug", "slug") || "").trim() || null;
+  const isYes = (v) => {
+    const s = String(v || "").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return s === "si" || s === "x" || s === "1" || s === "true" || s === "verdadero" || s === "yes";
+  };
+  const destacado = isYes(getField(raw, "Destacado", "destacado"));
+  const nuevo = isYes(getField(raw, "Nuevo", "nuevo"));
+  const etiquetasRaw = getField(raw, "Etiquetas", "etiquetas", "Tags", "tags");
+  const etiquetas = etiquetasRaw ? String(etiquetasRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : [];
+  const peso = (() => {
+    const v = getField(raw, "Peso", "peso");
+    if (v === undefined || v === null || v === "") return null;
+    const n = parseFloat(String(v).replace(",", ".").replace(/[^0-9.]/g, ""));
+    return isNaN(n) ? null : n;
+  })();
+  const material = String(getField(raw, "Material", "material") || "").trim() || null;
+  const genero = String(getField(raw, "Género", "Genero", "genero") || "").trim() || null;
+  const orden = (() => {
+    const v = getField(raw, "Orden", "orden");
+    return v !== undefined && v !== null && v !== "" ? Number(v) : 0;
+  })();
+
   return {
     id: id,
     rawId: rawId || id,
+    sku: sku,
+    rawSlug: rawSlug,
+    destacado: destacado,
+    nuevo: nuevo,
+    etiquetas: etiquetas,
+    peso: peso,
+    material: material,
+    genero: genero,
+    orden: orden,
     name: name,
     nombre: name,
     price: currentPrice,
@@ -297,97 +335,4 @@ export async function fetchSheetsProducts(options = {}) {
     error: lastError,
     fromCache: false,
   };
-}
-
-/**
- * --- PREPARADO PARA EL FUTURO ---
- * Hook para actualización de stock en Google Sheets tras una compra.
- * Podrá realizar una petición POST a la API de Apps Script enviando los IDs
- * comprados y las cantidades descontadas.
- *
- * @param {Array<{id: string, qty: number}>} purchasedItems Lista de productos comprados.
- * @returns {Promise<boolean>}
- */
-export async function updateStockAfterPurchase(purchasedItems) {
-  if (!purchasedItems || !purchasedItems.length) return false;
-  try {
-    // Cuando la API de Apps Script soporte POST de actualización de stock:
-    // await fetch(SHEETS_API_URL, { method: "POST", body: JSON.stringify({ action: "update_stock", items: purchasedItems }) });
-    console.log("[GoogleSheetsService] Hook de actualización de stock post-compra preparado para:", purchasedItems);
-    return true;
-  } catch (e) {
-    console.error("[GoogleSheetsService] Error al actualizar stock:", e);
-    return false;
-  }
-}
-
-/**
- * Combina los productos de Supabase (con imágenes subidas desde el panel Admin)
- * con los productos de Google Sheets (precios, precio oferta, stock, textos y estado).
- *
- * @param {Array} sheetsProds Productos procesados de Google Sheets.
- * @param {Array} supabaseProds Productos procesados de Supabase.
- * @returns {Array} Lista unificada de productos.
- */
-export function mergeSheetsAndSupabaseProducts(sheetsProds = [], supabaseProds = []) {
-  // Si no hay productos en Google Sheets, fallback a Supabase
-  if (!sheetsProds || !sheetsProds.length) {
-    return (supabaseProds || []).map(sp => {
-      const imgs = (sp.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
-      const principal = imgs.find(i => i.es_principal) || imgs[0];
-      return {
-        ...sp,
-        id: String(sp.id),
-        name: sp.nombre,
-        nombre: sp.nombre,
-        precio: Number(sp.precio_oferta || sp.precio),
-        price: Number(sp.precio_oferta || sp.precio),
-        oldPrice: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
-        precio_anterior: sp.precio_anterior ? Number(sp.precio_anterior) : (sp.precio_oferta ? Number(sp.precio) : null),
-        category: (sp.categoria && sp.categoria.slug) || "",
-        categoryName: (sp.categoria && sp.categoria.nombre) || "",
-        image: principal ? principal.url : null,
-        images: imgs.map(i => i.url),
-      };
-    });
-  }
-
-  // Si hay productos en Google Sheets, Google Sheets es la fuente de verdad.
-  // Solo se sincronizan fotos cargadas en Supabase Admin si el producto coincide.
-  const supabaseMap = new Map();
-  (supabaseProds || []).forEach(sp => {
-    const keyId = String(sp.id);
-    const keyName = slugify(sp.nombre || sp.name || "");
-    const imgs = (sp.imagenes || []).slice().sort((a, b) => a.orden - b.orden);
-    const principal = imgs.find(i => i.es_principal) || imgs[0];
-    const itemData = {
-      image: principal ? principal.url : null,
-      images: imgs.map(i => i.url),
-      imagenes: sp.imagenes || [],
-      variantes: sp.variantes || [],
-    };
-    supabaseMap.set(keyId, itemData);
-    if (keyName) supabaseMap.set(keyName, itemData);
-  });
-
-  return sheetsProds.map(gp => {
-    const keyId = String(gp.id);
-    const keyName = slugify(gp.name || gp.nombre || "");
-    const spData = supabaseMap.get(keyId) || supabaseMap.get(keyName) || null;
-
-    let mainImage = gp.image;
-    let images = gp.images || [];
-
-    if (spData) {
-      if (spData.image) mainImage = spData.image;
-      if (spData.images && spData.images.length) images = spData.images;
-    }
-
-    return {
-      ...gp,
-      image: mainImage || null,
-      images: images,
-      fromSheets: true,
-    };
-  });
 }

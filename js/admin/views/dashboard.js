@@ -7,6 +7,7 @@ import { categoryRepo } from "../../repositories/category.repo.js";
 import { orderRepo } from "../../repositories/order.repo.js";
 import { customerRepo } from "../../repositories/customer.repo.js";
 import { money, num, dateTime, esc, cap } from "../../core/format.js";
+import { getLastSync } from "../../services/sheetsSync.service.js";
 
 const ICON = {
   box:   '<path d="M3 7l9-4 9 4-9 4-9-4zm0 0v10l9 4 9-4V7M12 11v10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
@@ -14,6 +15,7 @@ const ICON = {
   cart:  '<path d="M3 4h2l2.4 12h11L21 7H6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/>',
   users: '<circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c1-4 4-5.5 6-5.5s5 1.5 6 5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 5.5A3 3 0 0119 11" fill="none" stroke="currentColor" stroke-width="1.6"/>',
   money: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v10M9.5 9.5c0-1.2 1.1-2 2.5-2s2.5.8 2.5 2-1.1 1.8-2.5 1.8-2.5.8-2.5 2 1.1 2 2.5 2 2.5-.8 2.5-2" fill="none" stroke="currentColor" stroke-width="1.4"/>',
+  warn:  '<path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
 };
 
 function kpi(id, label, icon, sub) {
@@ -39,12 +41,14 @@ export const dashboardView = {
 
       <div class="kpi-grid">
         ${kpi("productos", "Productos", ICON.box)}
+        ${kpi("agotados", "Agotados", ICON.warn)}
         ${kpi("categorias", "Categorías", ICON.tag)}
         ${kpi("pedidos", "Pedidos", ICON.cart)}
         ${kpi("clientes", "Clientes", ICON.users)}
         ${kpi("ingresos", "Ingresos", ICON.money)}
         ${kpi("pendientes", "Pendientes", ICON.cart)}
       </div>
+      <p class="td-mute" data-sheets-sync style="margin:-0.4rem 0 1.2rem;font-size:0.8rem"></p>
 
       <div class="two-col">
         <div class="panel">
@@ -68,6 +72,12 @@ export const dashboardView = {
 
     this._loadMetrics(el);
     this._loadRecientes(el);
+
+    const last = getLastSync();
+    const syncNote = el.querySelector("[data-sheets-sync]");
+    if (syncNote) syncNote.textContent = last
+      ? `⟳ Última sincronización con Google Sheets: ${dateTime(last)}`
+      : "⟳ Todavía no se sincronizó con Google Sheets desde este navegador.";
   },
 
   async _loadMetrics(el) {
@@ -80,6 +90,7 @@ export const dashboardView = {
     // Cada métrica se resuelve por separado: si una falla, las demás igual cargan.
     const tasks = [
       ["productos",  () => productRepo.count(),                  (n)=>`${n} en catálogo`],
+      ["agotados",   () => productRepo.count({ stock: 0 }),      ()=>`sin stock`, "warn"],
       ["categorias", () => categoryRepo.count(),                 (n)=>`${n} en total`],
       ["pedidos",    () => orderRepo.count(),                    (n)=>`${n} históricos`],
       ["clientes",   () => customerRepo.count(),                 (n)=>`${n} registrados`],
