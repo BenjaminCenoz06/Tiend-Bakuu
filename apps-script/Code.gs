@@ -363,24 +363,28 @@ function pushProductToSupabase_(row) {
   // Buscar producto existente por slug O por nombre (evita duplicar los productos
   // ya cargados en el panel que todavía no tenían slug).
   var existingId = findProductId_(base, slug, payload.nombre);
-  var saved;
+  var res;
   if (existingId) {
-    var patchRes = UrlFetchApp.fetch(base + "/rest/v1/products?id=eq." + existingId, {
+    res = UrlFetchApp.fetch(base + "/rest/v1/products?id=eq." + existingId, {
       method: "patch",
       headers: Object.assign({ Prefer: "return=representation" }, supabaseHeaders_()),
       payload: JSON.stringify(payload),
       muteHttpExceptions: true,
     });
-    saved = JSON.parse(patchRes.getContentText() || "[]")[0];
   } else {
-    var postRes = UrlFetchApp.fetch(base + "/rest/v1/products", {
+    res = UrlFetchApp.fetch(base + "/rest/v1/products", {
       method: "post",
       headers: Object.assign({ Prefer: "return=representation" }, supabaseHeaders_()),
       payload: JSON.stringify(payload),
       muteHttpExceptions: true,
     });
-    saved = JSON.parse(postRes.getContentText() || "[]")[0];
   }
+  // Mostrar el error REAL de Supabase en vez de ocultarlo silenciosamente.
+  var code = res.getResponseCode();
+  if (code >= 300) {
+    throw new Error("Supabase " + code + ": " + String(res.getContentText()).slice(0, 250));
+  }
+  var saved = JSON.parse(res.getContentText() || "[]")[0];
   if (!saved) return;
 
   var imgs = [row["Imagen 1"], row["Imagen 2"], row["Imagen 3"], row["Imagen 4"]]
