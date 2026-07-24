@@ -90,8 +90,8 @@ function build() {
     if (inc) { cart[+inc.dataset.inc].qty++; persist(); render(); }
     else if (dec) { const i = +dec.dataset.dec; cart[i].qty--; if (cart[i].qty <= 0) cart.splice(i, 1); persist(); render(); }
     else if (rm) { cart.splice(+rm.dataset.rm, 1); persist(); render(); }
-    else if (e.target.closest("[data-wa]")) checkoutWhatsApp();
-    else if (e.target.closest("[data-mp]")) checkoutMercadoPago();
+    else if (e.target.closest("[data-checkout]")) { location.href = "checkout.html"; }
+    else if (e.target.closest("[data-wa-consulta]")) consultaWhatsApp();
   });
 }
 
@@ -123,23 +123,14 @@ function render() {
       <div><button class="drawer-item-remove" data-rm="${i}">Quitar</button></div>
     </div>`).join("");
 
-  const buyer = loadBuyer();
   els.foot.innerHTML = `
     <div class="drawer-total"><span>Total</span><strong>${money(total())}</strong></div>
-    <div class="shop-buyer">
-      <input class="input" data-buyer-nombre placeholder="Tu nombre" value="${esc(buyer.nombre)}">
-      <input class="input" data-buyer-whatsapp placeholder="Tu WhatsApp" value="${esc(buyer.whatsapp)}">
-    </div>
-    <p class="shop-pay-label">Elegí cómo comprar</p>
-    <button class="btn btn-wide shop-wa" data-wa>
+    <button class="btn btn-wide shop-checkout" data-checkout>Finalizar compra →</button>
+    <button class="btn btn-wide shop-wa" data-wa-consulta>
       <span class="shop-btn-ico">${LOGO_WA}</span>
-      <span>Comprar por WhatsApp</span>
+      <span>Consultar por WhatsApp</span>
     </button>
-    <button class="btn btn-wide shop-mp" data-mp>
-      <span class="shop-btn-ico">${LOGO_MP}</span>
-      <span>Pagar con Mercado&nbsp;Pago</span>
-    </button>
-    <p class="shop-note">Coordinás envío y pago con la tienda. Sin cargos ocultos.</p>`;
+    <p class="shop-note">Al finalizar la compra vas a ingresar o crear tu cuenta. Envío y pago se coordinan con la tienda.</p>`;
 }
 
 function loadBuyer() {
@@ -183,7 +174,15 @@ async function createOrderRecord() {
   return { ...data, snapshot };
 }
 
-/* ---------- Checkout WhatsApp ---------- */
+/* ---------- Consulta por WhatsApp (sin crear pedido) ---------- */
+function consultaWhatsApp() {
+  if (!cart.length) return;
+  const lines = cart.map(it => `• ${it.nombre}${it.talle ? " (Talle " + it.talle + ")" : ""}${it.color ? " (" + it.color + ")" : ""} x${it.qty}`);
+  const msg = `¡Hola BAKU! Tengo una consulta sobre estos productos:\n\n${lines.join("\n")}\n\nTotal aprox: ${money(total())}`;
+  window.open("https://wa.me/" + waNumber() + "?text=" + encodeURIComponent(msg), "_blank");
+}
+
+/* ---------- Checkout WhatsApp (legacy, ya no se usa desde el drawer) ---------- */
 function waNumber() {
   const w = settings && settings.contacto && settings.contacto.whatsapp;
   return w ? String(w).replace(/\D/g, "") : "5493541231729";

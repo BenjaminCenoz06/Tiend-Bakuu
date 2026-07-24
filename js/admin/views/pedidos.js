@@ -83,15 +83,44 @@ export const pedidosView = {
     const id = ver.closest("tr").dataset.id;
     const o = this._all.find(x => x.id === id);
     const items = (o.items || []);
+    const env = o.envio || {};
+    const nombreCompleto = [o.nombre || (o.cliente && o.cliente.nombre), o.apellido].filter(Boolean).join(" ") || "Sin nombre";
+    const email = o.email || (o.cliente && o.cliente.email) || "—";
+    const tel = o.telefono || "—";
+    const dir = [
+      [env.calle, env.numero].filter(Boolean).join(" "),
+      env.depto ? "Depto " + env.depto : "",
+      env.barrio, env.ciudad, env.provincia,
+      env.cp ? "CP " + env.cp : "",
+    ].filter(Boolean).map(esc).join(", ") || "—";
+    const metodoTxt = { transferencia: "Transferencia bancaria", mercadopago: "Mercado Pago", efectivo: "Efectivo / a coordinar" }[o.metodo_pago] || (o.metodo_pago ? cap(o.metodo_pago) : "—");
+    const pagoPill = o.pago_estado === "pagado"
+      ? '<span class="pill pill-on">Pagado</span>'
+      : '<span class="pill pill-warn">Pendiente de pago</span>';
+
+    const dato = (label, val) => `<div style="margin-bottom:.55rem"><div class="td-mute" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">${label}</div><div class="td-strong" style="font-weight:500">${val}</div></div>`;
+
     const body = document.createElement("div");
     body.innerHTML = `
-      <div style="display:flex;justify-content:space-between;margin-bottom:1rem">
-        <div><div class="td-mute">Pedido</div><strong style="font-size:1.2rem">#${o.numero}</strong></div>
-        <span class="pill ${PILL[o.estado] || "pill-off"}">${cap(o.estado)}</span></div>
-      <div class="td-mute" style="margin-bottom:1rem">Cliente: <strong style="color:var(--text)">${esc((o.cliente && o.cliente.nombre) || "Sin cliente")}</strong>${o.cliente && o.cliente.email ? " · " + esc(o.cliente.email) : ""}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.1rem">
+        <div><div class="td-mute">Pedido</div><strong style="font-size:1.3rem">#${o.numero}</strong>
+          <div class="td-mute" style="font-size:.8rem;margin-top:.2rem">${dateTime(o.created_at)}</div></div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;align-items:flex-end">
+          <span class="pill ${PILL[o.estado] || "pill-off"}">${cap(o.estado)}</span>${pagoPill}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.4rem;padding:1rem;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:1.1rem">
+        ${dato("Cliente", esc(nombreCompleto))}
+        ${dato("Email", esc(email))}
+        ${dato("Teléfono / WhatsApp", esc(tel))}
+        ${dato("Método de pago", esc(metodoTxt))}
+        <div style="grid-column:1/-1">${dato("Dirección de entrega", dir)}</div>
+        ${o.notas ? `<div style="grid-column:1/-1">${dato("Notas", esc(o.notas))}</div>` : ""}
+      </div>
+
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th></tr></thead>
-        <tbody>${items.length ? items.map(it => `<tr><td class="td-strong">${esc(it.nombre)}${it.talle ? ` <span class="td-mute">· ${esc(it.talle)}</span>` : ""}</td><td class="td-num">${it.cantidad}</td><td class="td-num">${money(it.precio_unit)}</td></tr>`).join("") : `<tr><td colspan="3" class="td-mute" style="text-align:center;padding:1.5rem">Sin ítems registrados</td></tr>`}</tbody></table></div>
-      <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1rem;font-size:1.1rem"><span class="td-mute">Total</span><strong style="font-family:var(--mono)">${money(o.total)}</strong></div>`;
+        <tbody>${items.length ? items.map(it => `<tr><td class="td-strong">${esc(it.nombre)}${(it.talle || it.color) ? ` <span class="td-mute">· ${[it.talle, it.color].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</td><td class="td-num" data-label="Cant.">${it.cantidad}</td><td class="td-num" data-label="Precio">${money(it.precio_unit)}</td></tr>`).join("") : `<tr><td colspan="3" class="td-mute" style="text-align:center;padding:1.5rem">Sin ítems registrados</td></tr>`}</tbody></table></div>
+      <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1rem;font-size:1.15rem"><span class="td-mute">Total</span><strong style="font-family:var(--mono)">${money(o.total)}</strong></div>`;
     openModal({ title: `Pedido #${o.numero}`, body });
   },
 };

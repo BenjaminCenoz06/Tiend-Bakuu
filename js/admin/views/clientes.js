@@ -53,17 +53,22 @@ export const clientesView = {
     const rows = this._filtered();
     if (!rows.length) { box.innerHTML = `<div class="table-wrap"><div class="empty"><strong>Sin resultados</strong></div></div>`; return; }
     box.innerHTML = `<div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Cliente</th><th>Teléfono</th><th>Alta</th><th></th></tr></thead>
-      <tbody>${rows.map(c => `
+      <thead><tr><th>Cliente</th><th>Teléfono</th><th>Compras</th><th>Última compra</th><th></th></tr></thead>
+      <tbody>${rows.map(c => {
+        const nombreCompleto = [c.nombre, c.apellido].filter(Boolean).join(" ") || c.nombre;
+        const cuenta = c.user_id ? '<span class="pill pill-on" title="Se registró en la tienda">Cuenta</span>' : '';
+        return `
         <tr data-id="${c.id}">
           <td><div class="cell-prod"><span class="avatar" style="width:38px;height:38px">${esc((c.nombre[0] || "?").toUpperCase())}</span>
-            <div class="cell-prod-info"><div class="td-strong">${esc(c.nombre)}</div><div class="td-mute">${esc(c.email || "—")}</div></div></div></td>
+            <div class="cell-prod-info"><div class="td-strong">${esc(nombreCompleto)} ${cuenta}</div><div class="td-mute">${esc(c.email || "—")}</div></div></div></td>
           <td class="td-mute" data-label="Teléfono">${esc(c.telefono || "—")}</td>
-          <td class="td-mute" data-label="Alta">${date(c.created_at)}</td>
+          <td class="td-num" data-label="Compras">${Number(c.compras || 0)}</td>
+          <td class="td-mute" data-label="Última compra">${c.ultima_compra ? date(c.ultima_compra) : "—"}</td>
           <td><div class="row-actions">
             <button class="row-btn" data-hist title="Historial">${ICON.hist}</button>
             <button class="row-btn" data-edit title="Editar">${ICON.edit}</button>
-            <button class="row-btn danger" data-del title="Eliminar">${ICON.del}</button></div></td></tr>`).join("")}
+            <button class="row-btn danger" data-del title="Eliminar">${ICON.del}</button></div></td></tr>`;
+      }).join("")}
       </tbody></table></div>`;
   },
 
