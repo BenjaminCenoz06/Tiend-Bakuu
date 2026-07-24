@@ -112,6 +112,13 @@
     .userbar{display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--r);padding:.7rem 1rem;margin-bottom:1rem;font-size:.9rem}
     .userbar a{color:var(--gold);font-weight:600}
 
+    /* Login centrado y minimalista */
+    .auth-wrap{min-height:calc(100svh - 140px);display:grid;place-items:center;padding:2rem 0}
+    .auth-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:clamp(1.5rem,5vw,2.4rem)}
+    .auth-seal{width:48px;height:48px;margin:0 auto .9rem;display:grid;place-items:center;border-radius:50%;background:var(--bg-2);border:1px solid var(--gold);color:var(--gold);font-family:var(--display);font-weight:800;font-size:1.05rem}
+    .auth-title{font-family:var(--display);font-weight:700;font-size:1.25rem;text-align:center;margin-bottom:.35rem;letter-spacing:.01em}
+    .auth-sub{text-align:center;color:var(--ink-mute);font-size:.88rem;margin-bottom:1.5rem}
+
     .empty{text-align:center;padding:4rem 1rem;color:var(--ink-mute)}
     .empty .big{font-size:2.5rem;margin-bottom:.6rem}
     .loading{text-align:center;padding:3rem;color:var(--ink-mute)}

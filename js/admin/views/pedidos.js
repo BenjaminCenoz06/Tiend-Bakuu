@@ -5,6 +5,7 @@ import { orderRepo, ORDER_STATES } from "../../repositories/order.repo.js";
 import { openModal } from "../../core/ui/modal.js";
 import { toast } from "../../core/ui/toast.js";
 import { money, dateTime, esc, cap } from "../../core/format.js";
+import { getColorHex } from "../../core/colorDictionary.js";
 
 const PILL = {
   pendiente: "pill-warn", preparando: "pill-info", enviado: "pill-info",
@@ -118,9 +119,22 @@ export const pedidosView = {
         ${o.notas ? `<div style="grid-column:1/-1">${dato("Notas", esc(o.notas))}</div>` : ""}
       </div>
 
-      <div class="table-wrap"><table class="data-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th></tr></thead>
-        <tbody>${items.length ? items.map(it => `<tr><td class="td-strong">${esc(it.nombre)}${(it.talle || it.color) ? ` <span class="td-mute">· ${[it.talle, it.color].filter(Boolean).map(esc).join(" · ")}</span>` : ""}</td><td class="td-num" data-label="Cant.">${it.cantidad}</td><td class="td-num" data-label="Precio">${money(it.precio_unit)}</td></tr>`).join("") : `<tr><td colspan="3" class="td-mute" style="text-align:center;padding:1.5rem">Sin ítems registrados</td></tr>`}</tbody></table></div>
-      <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1rem;font-size:1.15rem"><span class="td-mute">Total</span><strong style="font-family:var(--mono)">${money(o.total)}</strong></div>`;
+      <div class="section-label" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);font-weight:600;margin-bottom:.5rem">Prendas del pedido</div>
+      <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        ${items.length ? items.map((it, i) => `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;padding:.85rem 1rem;${i ? "border-top:1px solid var(--border)" : ""}">
+            <div style="min-width:0">
+              <div class="td-strong">${esc(it.nombre)}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin-top:.4rem">
+                ${it.talle ? `<span class="pill pill-info">Talle ${esc(it.talle)}</span>` : ""}
+                ${it.color ? `<span class="pill pill-off"><span class="color-dot" style="--dot:${esc(getColorHex(it.color))};margin-right:.3rem"></span>${esc(it.color)}</span>` : ""}
+                <span class="td-mute" style="font-size:.82rem">${it.cantidad} × ${money(it.precio_unit)}</span>
+              </div>
+            </div>
+            <strong class="td-num">${money(Number(it.precio_unit) * Number(it.cantidad))}</strong>
+          </div>`).join("") : `<div class="td-mute" style="text-align:center;padding:1.5rem">Sin ítems registrados</div>`}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);font-size:1.2rem"><span class="td-mute">Total del pedido</span><strong style="font-family:var(--mono)">${money(o.total)}</strong></div>`;
     openModal({ title: `Pedido #${o.numero}`, body });
   },
 };
