@@ -151,7 +151,10 @@ class ProductRepository extends BaseRepository {
       payload.categoria_id = await this._resolveCategoriaId(categoriaNombre);
     }
 
-    const existing = await this.getBy("slug", payload.slug, "id");
+    // Match por slug y, si no aparece, por nombre — evita duplicar productos ya
+    // creados en el panel que todavía no tenían slug.
+    let existing = payload.slug ? await this.getBy("slug", payload.slug, "id") : null;
+    if (!existing && payload.nombre) existing = await this.getBy("nombre", payload.nombre, "id");
     if (existing) {
       await this.update(existing.id, payload);
       if (images && images.length) await this._syncImages(existing.id, images.map(url => ({ url })));

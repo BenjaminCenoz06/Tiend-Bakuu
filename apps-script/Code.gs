@@ -95,7 +95,7 @@ function onEditInstallable(e) {
   try {
     if (isSyncLocked_()) return; // evita loop con nuestras propias escrituras
     var sheet = e.range.getSheet();
-    if (sheet.getName() !== SHEET_NAME) return;
+    if (!isCatalogSheet_(sheet)) return; // solo la hoja del catálogo (detectada por encabezados)
     var row = e.range.getRow();
     if (row <= 1) return; // encabezado
 
@@ -125,13 +125,56 @@ function setupTriggers() {
   Logger.log("Trigger onEditInstallable instalado correctamente.");
 }
 
+/**
+ * IMPORTACIÓN MASIVA: empuja TODAS las filas de la planilla a Supabase.
+ * Corré esta función UNA VEZ manualmente desde el editor para poblar la base
+ * con todo el catálogo (y cada vez que quieras forzar un re-sync completo).
+ * Al terminar, el Registro muestra cuántas filas se sincronizaron.
+ */
+function syncAllToSupabase() {
+  PropertiesService.getScriptProperties().deleteProperty("SYNC_LOCK"); // limpia candado por si quedó trabado
+  var sheet = getSheet_();
+  var rows = readAllRows_(sheet);
+  var ok = 0, fail = 0, errores = [];
+  for (var i = 0; i < rows.length; i++) {
+    var product = rows[i];
+    if (!product["Producto"] && !product["Slug"]) continue;
+    if (!product["Slug"]) product["Slug"] = slugify_(product["Producto"]);
+    try {
+      pushProductToSupabase_(product);
+      ok++;
+    } catch (err) {
+      fail++;
+      errores.push(product["Producto"] + ": " + (err && err.message || err));
+    }
+  }
+  var msg = "Sincronización masiva terminada. OK: " + ok + " · Errores: " + fail +
+    (errores.length ? ("\n" + errores.join("\n")) : "");
+  Logger.log(msg);
+  return msg;
+}
+
 /* =============================================================
  *  Helpers — Sheet
  * ============================================================= */
 function getSheet_() {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
-  if (!sheet) throw new Error('No existe la hoja "' + SHEET_NAME + '"');
-  return sheet;
+  var ss = SpreadsheetApp.getActive();
+  // 1) por nombre exacto; 2) la primera hoja que tenga los encabezados del catálogo;
+  // 3) como último recurso, la primera hoja. Así funciona sin importar el nombre de la pestaña.
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (sheet) return sheet;
+  var all = ss.getSheets();
+  for (var i = 0; i < all.length; i++) {
+    if (isCatalogSheet_(all[i])) return all[i];
+  }
+  return all[0];
+}
+
+/** ¿La fila 1 de esta hoja tiene los encabezados del catálogo (Producto + Slug)? */
+function isCatalogSheet_(sheet) {
+  if (!sheet || sheet.getLastColumn() === 0) return false;
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  return headers.indexOf("Producto") !== -1 && headers.indexOf("Slug") !== -1;
 }
 
 function readAllRows_(sheet) {
@@ -268,6 +311,23 @@ function resolveCategoriaId_(nombre) {
   return created[0] ? created[0].id : null;
 }
 
+/** Devuelve el id de un producto en Supabase buscando por slug y, si no, por nombre. */
+function findProductId_(base, slug, nombre) {
+  if (slug) {
+    var r = UrlFetchApp.fetch(base + "/rest/v1/products?slug=eq." + encodeURIComponent(slug) + "&select=id",
+      { headers: supabaseHeaders_(), muteHttpExceptions: true });
+    var f = JSON.parse(r.getContentText() || "[]");
+    if (f.length) return f[0].id;
+  }
+  if (nombre) {
+    var r2 = UrlFetchApp.fetch(base + "/rest/v1/products?nombre=eq." + encodeURIComponent(nombre) + "&select=id",
+      { headers: supabaseHeaders_(), muteHttpExceptions: true });
+    var f2 = JSON.parse(r2.getContentText() || "[]");
+    if (f2.length) return f2[0].id;
+  }
+  return null;
+}
+
 function pushProductToSupabase_(row) {
   var base = PropertiesService.getScriptProperties().getProperty("SUPABASE_URL");
   var slug = row["Slug"] || slugify_(row["Producto"]);
@@ -296,13 +356,27 @@ function pushProductToSupabase_(row) {
     sheet_synced_at: new Date().toISOString(),
   };
 
-  var res = UrlFetchApp.fetch(base + "/rest/v1/products?on_conflict=slug", {
-    method: "post",
-    headers: Object.assign({ Prefer: "resolution=merge-duplicates,return=representation" }, supabaseHeaders_()),
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true,
-  });
-  var saved = JSON.parse(res.getContentText() || "[]")[0];
+  // Buscar producto existente por slug O por nombre (evita duplicar los productos
+  // ya cargados en el panel que todavía no tenían slug).
+  var existingId = findProductId_(base, slug, payload.nombre);
+  var saved;
+  if (existingId) {
+    var patchRes = UrlFetchApp.fetch(base + "/rest/v1/products?id=eq." + existingId, {
+      method: "patch",
+      headers: Object.assign({ Prefer: "return=representation" }, supabaseHeaders_()),
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    saved = JSON.parse(patchRes.getContentText() || "[]")[0];
+  } else {
+    var postRes = UrlFetchApp.fetch(base + "/rest/v1/products", {
+      method: "post",
+      headers: Object.assign({ Prefer: "return=representation" }, supabaseHeaders_()),
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true,
+    });
+    saved = JSON.parse(postRes.getContentText() || "[]")[0];
+  }
   if (!saved) return;
 
   var imgs = [row["Imagen 1"], row["Imagen 2"], row["Imagen 3"], row["Imagen 4"]]
@@ -312,12 +386,14 @@ function pushProductToSupabase_(row) {
 }
 
 function syncImages_(base, productoId, urls) {
+  // Si la planilla no trae imágenes reales, NO tocar las que ya se subieron desde
+  // el panel (Supabase Storage) — así el sync de texto/precio no borra las fotos.
+  if (!urls.length) return;
   UrlFetchApp.fetch(base + "/rest/v1/product_images?producto_id=eq." + productoId, {
     method: "delete",
     headers: supabaseHeaders_(),
     muteHttpExceptions: true,
   });
-  if (!urls.length) return;
   var rows = urls.map(function (url, i) {
     return { producto_id: productoId, url: url, orden: i, es_principal: i === 0 };
   });
