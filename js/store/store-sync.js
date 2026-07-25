@@ -69,13 +69,18 @@ function applyContent(s) {
     }
   });
 
-  // Barra de anuncios (marquee): se reconstruye duplicando la lista para el loop.
-  const track = document.querySelector("[data-cms-anuncios]");
-  const anuncios = Array.isArray(c.anuncios) ? c.anuncios.filter(x => String(x || "").trim()) : [];
-  if (track && anuncios.length) {
-    const once = anuncios.map(a => `<span>${esc(a)}</span><i>◆</i>`).join("");
-    track.innerHTML = once + once; // dos vueltas = scroll continuo
-  }
+  // Marquees (barra de anuncios y ticker): se reconstruyen duplicando la lista.
+  fillMarquee("[data-cms-anuncios]", c.anuncios, "◆");
+  fillMarquee("[data-cms-ticker]", c.ticker, "®");
+}
+
+/** Rellena una marquesina con un array de frases (duplicado = scroll continuo). */
+function fillMarquee(selector, arr, sep) {
+  const track = document.querySelector(selector);
+  const items = Array.isArray(arr) ? arr.filter(x => String(x || "").trim()) : [];
+  if (!track || !items.length) return;
+  const once = items.map(a => `<span>${esc(a)}</span><i>${sep}</i>`).join("");
+  track.innerHTML = once + once;
 }
 
 /* ---------- Datos de contacto / redes desde el panel ---------- */

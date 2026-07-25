@@ -34,6 +34,7 @@ export const configuracionView = {
       pagos: (cfg.pagos || []).slice(),
       envios: (cfg.envios || []).slice(),
       anuncios: (cn.anuncios || []).slice(),
+      ticker: (cn.ticker || []).slice(),
     };
 
     el.innerHTML = `
@@ -128,6 +129,65 @@ export const configuracionView = {
               <input class="input" id="cn-spn" name="seccion_productos_nota" value="${esc(cn.seccion_productos_nota || "")}" placeholder="Ocho piezas. Cuando se van, se van."></div>
             <div class="field col-2"><label for="cn-sc">Sección categorías — título</label>
               <input class="input" id="cn-sc" name="seccion_categorias_titulo" value="${esc(cn.seccion_categorias_titulo || "")}" placeholder="Por dónde empezar"></div>
+
+            <div class="form-section-title">Ticker (cinta que gira bajo el hero)</div>
+            <div class="field col-2"><label>Frases del ticker</label>
+              <div class="chips" data-chips="ticker"></div>
+              <input class="input" data-chip-input="ticker" placeholder="Escribí una frase y Enter (ej: @baku.cba)"></div>
+
+            <div class="form-section-title">Sección "La tienda" (03)</div>
+            <div class="field col-2"><label for="cn-st">Título</label>
+              <input class="input" id="cn-st" name="studio_titulo" value="${esc(cn.studio_titulo || "")}" placeholder="Más que un local."></div>
+            <div class="field"><label for="cn-sc1t">Bloque 1 — título</label>
+              <input class="input" id="cn-sc1t" name="studio_c1_titulo" value="${esc(cn.studio_c1_titulo || "")}" placeholder="Selección real"></div>
+            <div class="field"><label for="cn-sc1x">Bloque 1 — texto</label>
+              <input class="input" id="cn-sc1x" name="studio_c1_texto" value="${esc(cn.studio_c1_texto || "")}"></div>
+            <div class="field"><label for="cn-sc2t">Bloque 2 — título</label>
+              <input class="input" id="cn-sc2t" name="studio_c2_titulo" value="${esc(cn.studio_c2_titulo || "")}" placeholder="Atención de verdad"></div>
+            <div class="field"><label for="cn-sc2x">Bloque 2 — texto</label>
+              <input class="input" id="cn-sc2x" name="studio_c2_texto" value="${esc(cn.studio_c2_texto || "")}"></div>
+            <div class="field"><label for="cn-sc3t">Bloque 3 — título</label>
+              <input class="input" id="cn-sc3t" name="studio_c3_titulo" value="${esc(cn.studio_c3_titulo || "")}" placeholder="Nueva Córdoba"></div>
+            <div class="field"><label for="cn-sc3x">Bloque 3 — texto</label>
+              <input class="input" id="cn-sc3x" name="studio_c3_texto" value="${esc(cn.studio_c3_texto || "")}"></div>
+
+            <div class="form-section-title">Otras secciones — títulos</div>
+            <div class="field"><label for="cn-lbt">Lookbook — título</label>
+              <input class="input" id="cn-lbt" name="lookbook_titulo" value="${esc(cn.lookbook_titulo || "")}" placeholder="Siluetas de invierno"></div>
+            <div class="field"><label for="cn-lbn">Lookbook — nota</label>
+              <input class="input" id="cn-lbn" name="lookbook_nota" value="${esc(cn.lookbook_nota || "")}"></div>
+            <div class="field"><label for="cn-acc">Accesorios — título</label>
+              <input class="input" id="cn-acc" name="accesorios_titulo" value="${esc(cn.accesorios_titulo || "")}" placeholder="Para terminar el fit"></div>
+            <div class="field"><label for="cn-loc">El Local — título</label>
+              <input class="input" id="cn-loc" name="local_titulo" value="${esc(cn.local_titulo || "")}" placeholder="Vení a probártelo"></div>
+            <div class="field col-2"><label for="cn-locn">El Local — nota</label>
+              <input class="input" id="cn-locn" name="local_nota" value="${esc(cn.local_nota || "")}"></div>
+            <div class="field"><label for="cn-newt">Newsletter — título</label>
+              <input class="input" id="cn-newt" name="news_titulo" value="${esc(cn.news_titulo || "")}" placeholder="Enterate antes que el resto."></div>
+            <div class="field"><label for="cn-news">Newsletter — subtítulo</label>
+              <input class="input" id="cn-news" name="news_sub" value="${esc(cn.news_sub || "")}"></div>
+
+            <div class="form-section-title">Sección "Reseñas" (06)</div>
+            <div class="field"><label for="cn-rvt">Título</label>
+              <input class="input" id="cn-rvt" name="reviews_titulo" value="${esc(cn.reviews_titulo || "")}" placeholder="Lo que dicen de BAKU"></div>
+            <div class="field"><label for="cn-rvs">Puntaje (número)</label>
+              <input class="input" id="cn-rvs" name="reviews_score" value="${esc(cn.reviews_score || "")}" placeholder="4,1"></div>
+            <div class="field"><label for="cn-rvsn">Puntaje — nota</label>
+              <input class="input" id="cn-rvsn" name="reviews_score_nota" value="${esc(cn.reviews_score_nota || "")}" placeholder="15 reseñas en Google"></div>
+            <div class="field"><label for="cn-rvml">Link "Ver en Google Maps"</label>
+              <input class="input" id="cn-rvml" name="reviews_maps_link" value="${esc(cn.reviews_maps_link || "")}"></div>
+            <div class="field col-2"><label for="cn-rv1">Reseña 1 — texto</label>
+              <input class="input" id="cn-rv1" name="review1_texto" value="${esc(cn.review1_texto || "")}"></div>
+            <div class="field col-2"><label for="cn-rv1a">Reseña 1 — autor</label>
+              <input class="input" id="cn-rv1a" name="review1_autor" value="${esc(cn.review1_autor || "")}" placeholder="Richard S. — Google"></div>
+            <div class="field col-2"><label for="cn-rv2">Reseña 2 — texto</label>
+              <input class="input" id="cn-rv2" name="review2_texto" value="${esc(cn.review2_texto || "")}"></div>
+            <div class="field col-2"><label for="cn-rv2a">Reseña 2 — autor</label>
+              <input class="input" id="cn-rv2a" name="review2_autor" value="${esc(cn.review2_autor || "")}"></div>
+            <div class="field col-2"><label for="cn-rv3">Reseña 3 — texto</label>
+              <input class="input" id="cn-rv3" name="review3_texto" value="${esc(cn.review3_texto || "")}"></div>
+            <div class="field col-2"><label for="cn-rv3a">Reseña 3 — autor</label>
+              <input class="input" id="cn-rv3a" name="review3_autor" value="${esc(cn.review3_autor || "")}"></div>
           </div></div>
 
         <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Medios de pago y envío</h3></div>
@@ -161,7 +221,7 @@ export const configuracionView = {
   },
 
   _wireChips() {
-    ["pagos", "envios", "anuncios"].forEach(key => {
+    ["pagos", "envios", "anuncios", "ticker"].forEach(key => {
       const cont = this.el.querySelector(`[data-chips="${key}"]`);
       const input = this.el.querySelector(`[data-chip-input="${key}"]`);
       const render = () => {
@@ -203,6 +263,7 @@ export const configuracionView = {
       envios: this._st.envios,
       contenido: {
         anuncios: this._st.anuncios,
+        ticker: this._st.ticker,
         hero_kicker: g("hero_kicker"),
         hero_titulo1: g("hero_titulo1"),
         hero_titulo2: g("hero_titulo2"),
@@ -214,6 +275,30 @@ export const configuracionView = {
         seccion_productos_titulo: g("seccion_productos_titulo"),
         seccion_productos_nota: g("seccion_productos_nota"),
         seccion_categorias_titulo: g("seccion_categorias_titulo"),
+        studio_titulo: g("studio_titulo"),
+        studio_c1_titulo: g("studio_c1_titulo"),
+        studio_c1_texto: g("studio_c1_texto"),
+        studio_c2_titulo: g("studio_c2_titulo"),
+        studio_c2_texto: g("studio_c2_texto"),
+        studio_c3_titulo: g("studio_c3_titulo"),
+        studio_c3_texto: g("studio_c3_texto"),
+        lookbook_titulo: g("lookbook_titulo"),
+        lookbook_nota: g("lookbook_nota"),
+        accesorios_titulo: g("accesorios_titulo"),
+        local_titulo: g("local_titulo"),
+        local_nota: g("local_nota"),
+        news_titulo: g("news_titulo"),
+        news_sub: g("news_sub"),
+        reviews_titulo: g("reviews_titulo"),
+        reviews_score: g("reviews_score"),
+        reviews_score_nota: g("reviews_score_nota"),
+        reviews_maps_link: g("reviews_maps_link"),
+        review1_texto: g("review1_texto"),
+        review1_autor: g("review1_autor"),
+        review2_texto: g("review2_texto"),
+        review2_autor: g("review2_autor"),
+        review3_texto: g("review3_texto"),
+        review3_autor: g("review3_autor"),
       },
     };
     const btn = this.el.querySelector("[data-save]");
