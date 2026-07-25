@@ -65,6 +65,22 @@ var FIELDS = {
  * ============================================================= */
 function doGet(e) {
   var sheet = getSheet_();
+
+  // Modo diagnóstico: ?debug=1 devuelve la estructura para auditar sin adivinar.
+  if (e && e.parameter && e.parameter.debug) {
+    var ssD = SpreadsheetApp.openById(SHEET_ID);
+    var valsD = sheet.getDataRange().getValues();
+    var hiD = headerRowIdx_(valsD);
+    return jsonOut_({
+      spreadsheet: ssD.getName(),
+      tabs: ssD.getSheets().map(function (s) { return s.getName(); }),
+      usingTab: sheet.getName(),
+      headerRowIndex: hiD,
+      headerRow: valsD[hiD],
+      sampleRows: valsD.slice(hiD + 1, hiD + 4),
+    });
+  }
+
   var rows = readAllRows_(sheet);
 
   // Ignorar filas basura de la planilla de inventario: separadores y filas de
@@ -199,11 +215,30 @@ function normKey_(s) {
     .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
 }
 
-/** Mapa { encabezadoNormalizado: nºColumna(1-based) } de la fila 1. */
+/**
+ * Detecta en qué fila están los encabezados reales (0-based), buscando una fila
+ * con un encabezado de nombre + otro de tipo/precio/stock. Tolera un título en
+ * la fila 1 (ej. "Seguimiento_de_inventario") por encima de los encabezados.
+ */
+function headerRowIdx_(values) {
+  var max = Math.min(values.length, 12);
+  for (var i = 0; i < max; i++) {
+    var norm = values[i].map(normKey_);
+    var hasName = norm.indexOf("nombredelarticulo") !== -1 || norm.indexOf("nombre") !== -1 ||
+                  norm.indexOf("producto") !== -1 || norm.indexOf("articulo") !== -1;
+    var hasOther = norm.indexOf("tipo") !== -1 || norm.indexOf("stock") !== -1 ||
+                   norm.indexOf("tarjeta") !== -1 || norm.indexOf("efectivo") !== -1 ||
+                   norm.indexOf("precio") !== -1;
+    if (hasName && hasOther) return i;
+  }
+  return 0;
+}
+
+/** Mapa { encabezadoNormalizado: nºColumna(1-based) } de la fila de encabezados detectada. */
 function headerMap_(sheet) {
-  var last = sheet.getLastColumn();
-  if (!last) return {};
-  var headers = sheet.getRange(1, 1, 1, last).getValues()[0];
+  var values = sheet.getDataRange().getValues();
+  if (!values.length) return {};
+  var headers = values[headerRowIdx_(values)];
   var map = {};
   headers.forEach(function (h, i) {
     var k = normKey_(h);
@@ -242,13 +277,14 @@ function field_(row, fieldKey) {
 function readAllRows_(sheet) {
   var values = sheet.getDataRange().getValues();
   if (!values.length) return [];
-  var headers = values[0];
+  var hi = headerRowIdx_(values);
+  var headers = values[hi].map(function (h) { return String(h); });
   var out = [];
-  for (var i = 1; i < values.length; i++) {
+  for (var i = hi + 1; i < values.length; i++) {
     var row = values[i];
     if (row.every(function (c) { return c === "" || c === null; })) continue;
     var obj = {};
-    headers.forEach(function (h, idx) { obj[String(h)] = row[idx]; });
+    headers.forEach(function (h, idx) { if (h !== "") obj[h] = row[idx]; });
     out.push(obj);
   }
   return out;
