@@ -20,27 +20,34 @@
  * =============================================================
  */
 
-// --- Planilla oficial STOCK (fuente única de datos) ---
+// --- Planilla oficial STOCK (fuente única de datos, SOLO LECTURA) ---
 var SHEET_ID = "18lhj4w88DmRNnXNXMKtAJt8sw6nDQHbgIWbHlcAM6jI";
-var SHEET_NAME = "Productos"; // pestaña oficial — NO cambiar.
+var SHEET_NAME = "Seguimiento_de_inventario"; // pestaña real del inventario del dueño.
 
 // --- Alias de columnas: cada campo lógico puede llamarse de varias formas.
 //     Así el sistema se adapta a la planilla, no la planilla al sistema. ---
+// Alias adaptados a la planilla STOCK real (pestaña "Seguimiento_de_inventario"):
+//   ID del artículo | Nombre del artículo | Tipo | efectivo | tarjeta | Stock |
+//   Estado | Notas | MARCA | Columna 1
+// Se mantienen también alias de e-commerce por compatibilidad.
 var FIELDS = {
-  id:            ["ID", "Id", "Codigo", "Código", "Cod"],
-  sku:           ["SKU", "Sku", "Codigo de barra", "Código de barra", "Cod. Barras"],
+  grupo:         ["ID del articulo", "ID del artículo"],
+  id:            ["ID del articulo", "ID del artículo", "ID", "Id", "Codigo"],
+  sku:           ["SKU", "Sku", "Codigo de barra", "Código de barra"],
   slug:          ["Slug"],
-  nombre:        ["Producto", "Nombre", "Articulo", "Artículo", "Titulo", "Título", "Prenda"],
-  descripcion:   ["Descripcion", "Descripción", "Description", "Detalle", "Descripcion corta"],
-  descripcion_larga: ["Descripcion larga", "Descripción larga", "Detalle largo"],
-  categoria:     ["Categoria", "Categoría", "Rubro", "Tipo", "Category"],
-  precio:        ["Precio", "Precio Lista", "Precio Venta", "P. Venta", "Price"],
-  precio_oferta: ["Precio Oferta", "PrecioOferta", "Oferta", "Precio Descuento", "Precio Promo"],
+  nombre:        ["Nombre del articulo", "Nombre del artículo", "Producto", "Nombre", "Articulo", "Artículo", "Titulo"],
+  descripcion:   ["Descripcion", "Descripción", "Detalle", "Notas"],
+  categoria:     ["Tipo", "Categoria", "Categoría", "Rubro", "Category"],
+  precio:        ["tarjeta", "Precio", "efectivo", "Precio Lista", "Price"],  // tarjeta preferido; efectivo respaldo
+  precio_efectivo: ["efectivo", "Efectivo", "Contado"],
+  precio_tarjeta:  ["tarjeta", "Tarjeta"],
+  precio_oferta: ["Precio Oferta", "Oferta"],
   stock:         ["Stock", "Cantidad", "Existencia", "Unidades", "Cant"],
-  estado:        ["Estado", "Status", "Activo", "Publicado", "Visible"],
-  talles:        ["Talles", "Talle", "Sizes", "Size", "Medidas"],
+  estado:        ["Estado", "Status", "Activo", "Publicado"],
+  talles:        ["Notas", "Talles", "Talle", "Sizes", "Medidas"],
   colores:       ["Colores", "Color", "Colors"],
-  imagen1:       ["Imagen 1", "Imagen", "Imagen Principal", "Foto", "Foto 1", "Imagen1", "URL Imagen", "Link Imagen", "Fotos", "Imagenes", "Imágenes"],
+  marca:         ["MARCA", "Marca", "Brand"],
+  imagen1:       ["Imagen 1", "Imagen", "Imagen Principal", "Foto", "Foto 1", "Imagen1", "URL Imagen", "Link Imagen", "Fotos"],
   imagen2:       ["Imagen 2", "Foto 2", "Imagen2"],
   imagen3:       ["Imagen 3", "Foto 3", "Imagen3"],
   imagen4:       ["Imagen 4", "Foto 4", "Imagen4"],
@@ -50,7 +57,7 @@ var FIELDS = {
   peso:          ["Peso", "Weight"],
   material:      ["Material", "Composicion", "Composición", "Tela"],
   genero:        ["Genero", "Género", "Sexo", "Gender"],
-  orden:         ["Orden", "Order", "Posicion", "Posición", "Prioridad"],
+  orden:         ["Orden", "Order", "Posicion", "Prioridad"],
 };
 
 /* =============================================================
@@ -59,6 +66,12 @@ var FIELDS = {
 function doGet(e) {
   var sheet = getSheet_();
   var rows = readAllRows_(sheet);
+
+  // Ignorar filas basura de la planilla de inventario: separadores y filas de
+  // total "$0.00" que no tienen nombre de artículo cargado.
+  rows = rows.filter(function (r) {
+    return String(field_(r, "nombre")).trim() !== "";
+  });
 
   var id = e && e.parameter && e.parameter.id;
   if (id) {

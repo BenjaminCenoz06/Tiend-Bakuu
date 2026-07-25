@@ -27,6 +27,21 @@ function slugify(text) {
 }
 
 /**
+ * Extrae talles reconocibles de un texto libre de inventario.
+ * Ej: "1 S, 1 M, 3 L" -> ["S","M","L"] \u00b7 "30/40 S" -> ["S","30","40"] \u00b7 "40/46" -> ["40","46"].
+ * Devuelve [] si no encuentra ninguno (accesorios de talle \u00fanico).
+ */
+function parseTalles(str) {
+  if (!str) return [];
+  const s = String(str).toUpperCase();
+  const out = [];
+  const push = (t) => { if (t && out.indexOf(t) === -1) out.push(t); };
+  (s.match(/\b(XXXL|XXL|XL|XS|S|M|L)\b/g) || []).forEach(push);   // talles de letra
+  (s.match(/\b([2-6][0-9])\b/g) || []).forEach(push);              // talles num\u00e9ricos (20-69)
+  return out;
+}
+
+/**
  * Mapeo de categorías conocidas con su correspondiente arte vectorial SVG
  * de la tienda Baku. Permite mostrar gráficos vectoriales impecables
  * si la prenda aún no tiene URL de imagen especificada en Google Sheets.
@@ -73,21 +88,35 @@ function getField(raw, ...keys) {
 export function normalizeSheetProduct(raw) {
   if (!raw) return null;
 
-  const rawId = getField(raw, "ID", "id", "Codigo", "codigo");
-  const name = String(getField(raw, "Producto", "Nombre", "name", "nombre", "Titulo", "titulo") || "Producto sin nombre").trim();
-  const id = String(rawId || slugify(name));
+  const parseMoney = (v) => {
+    if (v == null || v === "") return 0;
+    const n = Number(String(v).replace(/[^0-9.]/g, "")); // "$45,000.00" -> 45000
+    return isNaN(n) ? 0 : n;
+  };
 
-  const categoryName = String(getField(raw, "Categoría", "Categoria", "category", "categoria") || "Catálogo").trim();
+  // --- Planilla STOCK: "ID del artículo" es el grupo (TRAJE DE BAÑO, REMERAS…),
+  //     "Nombre del artículo" es la variante. Se combinan para el nombre visible. ---
+  const grupo = String(getField(raw, "ID del artículo", "ID del articulo") || "").trim();
+  const baseName = String(getField(raw, "Nombre del artículo", "Nombre del articulo", "Producto", "Nombre", "name", "nombre", "Titulo") || "Producto sin nombre").trim();
+  const marca = String(getField(raw, "MARCA", "Marca", "marca", "Brand") || "").trim();
+  const name = (grupo && baseName.toUpperCase().indexOf(grupo.toUpperCase()) === -1)
+    ? `${grupo} ${baseName}`.trim()
+    : baseName;
+  // Clave estable (la planilla no tiene ID único): grupo + variante + marca.
+  const id = slugify([grupo, baseName, marca].filter(Boolean).join(" ")) || slugify(name);
+
+  const categoryName = String(getField(raw, "Tipo", "Categoría", "Categoria", "category", "categoria") || "Catálogo").trim();
   const categorySlug = slugify(categoryName);
 
-  // Precios
-  const priceRegular = Number(getField(raw, "Precio", "precio", "price", "Price")) || 0;
-  const priceSaleVal = getField(raw, "Precio Oferta", "PrecioOferta", "precio_oferta", "Oferta", "oferta", "PrecioDescuento");
-  const priceSale = priceSaleVal !== undefined && priceSaleVal !== null && priceSaleVal !== "" ? Number(priceSaleVal) : null;
-
-  const hasDiscount = priceSale !== null && priceSale > 0 && priceSale < priceRegular;
-  const currentPrice = hasDiscount ? priceSale : priceRegular;
-  const oldPrice = hasDiscount ? priceRegular : null;
+  // Precio: se prefiere "tarjeta"; si no está, "efectivo" (formato "$45,000.00").
+  const precioTarjeta = parseMoney(getField(raw, "tarjeta", "Tarjeta"));
+  const precioEfectivo = parseMoney(getField(raw, "efectivo", "Efectivo", "Contado"));
+  const priceRegular = precioTarjeta || precioEfectivo ||
+    parseMoney(getField(raw, "Precio", "precio", "price", "Price"));
+  const priceSale = null;      // el inventario no maneja precio de oferta
+  const hasDiscount = false;
+  const currentPrice = priceRegular;
+  const oldPrice = null;
 
   // Stock y Estado
   const stockVal = getField(raw, "Stock", "stock", "Cantidad", "cantidad");
@@ -127,12 +156,13 @@ export function normalizeSheetProduct(raw) {
       ? rawImg
       : (rawImg ? String(rawImg).split(",").map(s => s.trim()).filter(Boolean) : (mainImage ? [mainImage] : [])));
 
-  // Talles y Colores
-  const coloresRaw = getField(raw, "Colores", "Color", "colores", "color", "Colors", "Color");
+  // Colores: en esta planilla el color va dentro del nombre, no hay columna aparte.
+  const coloresRaw = getField(raw, "Colores", "Color", "colores", "Colors");
   const colors = coloresRaw ? String(coloresRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : [];
 
-  const tallesRaw = getField(raw, "Talles", "Talle", "talles", "talle", "Sizes", "Size", "sizes", "size");
-  const sizes = tallesRaw ? String(tallesRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : ["S", "M", "L", "XL"];
+  // Talles: se extraen de "Notas" (texto libre del inventario: "1 S, 1 M, 3 L", "40/46"…).
+  const tallesRaw = getField(raw, "Notas", "Talles", "Talle", "talles", "Sizes", "Size");
+  const sizes = parseTalles(tallesRaw);
 
   // Descripciones
   const desc = String(getField(raw, "Descripción", "Descripcion", "descripcion", "desc", "Description", "description", "Detalle", "detalle") || `${name} — Categoría ${categoryName}. Streetwear Baku.`).trim();
@@ -169,9 +199,11 @@ export function normalizeSheetProduct(raw) {
 
   return {
     id: id,
-    rawId: rawId || id,
+    rawId: id,
+    slug: id,
     sku: sku,
-    rawSlug: rawSlug,
+    rawSlug: rawSlug || id,
+    marca: marca || null,
     destacado: destacado,
     nuevo: nuevo,
     etiquetas: etiquetas,

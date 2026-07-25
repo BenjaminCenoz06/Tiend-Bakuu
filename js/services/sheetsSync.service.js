@@ -56,8 +56,21 @@ function toSheetPayload(product) {
   };
 }
 
-/** Empuja el producto completo (alta o edición) a la fila del Sheet. No bloqueante. */
+// =============================================================
+//  MODO SOLO LECTURA sobre la planilla STOCK del dueño.
+//  La planilla "Seguimiento_de_inventario" es el inventario real del
+//  negocio (sin ID único, con datos delicados). Para respetar la regla
+//  "NO modificar la planilla", el sistema NUNCA escribe en ella: estas
+//  funciones quedan como no-op seguras. El panel y las ventas siguen
+//  funcionando (guardan en Supabase); solo NO tocan la planilla.
+//  toSheetPayload/post_ se conservan por si en el futuro se habilita
+//  una planilla propia de escritura.
+// =============================================================
+const SHEET_WRITE_ENABLED = false;
+
+/** (Solo lectura) No escribe en la planilla del dueño. */
 export async function pushProductToSheet(product) {
+  if (!SHEET_WRITE_ENABLED) return { ok: true, skipped: "read-only" };
   if (!product || !product.slug) return { ok: false, error: "Producto sin slug" };
   try {
     const res = await post_({ action: "upsert", product: toSheetPayload(product) });
@@ -69,8 +82,9 @@ export async function pushProductToSheet(product) {
   }
 }
 
-/** Actualiza solo el stock de una fila (compra, ajuste rápido). */
+/** (Solo lectura) No escribe stock en la planilla del dueño. */
 export async function pushStockToSheet(slug, stock) {
+  if (!SHEET_WRITE_ENABLED) return { ok: true, skipped: "read-only" };
   if (!slug) return { ok: false };
   try {
     const res = await post_({ action: "update_stock", slug, stock });
@@ -82,8 +96,9 @@ export async function pushStockToSheet(slug, stock) {
   }
 }
 
-/** Elimina la fila correspondiente cuando se borra el producto en el panel. */
+/** (Solo lectura) No elimina filas de la planilla del dueño. */
 export async function deleteProductFromSheet(slug) {
+  if (!SHEET_WRITE_ENABLED) return { ok: true, skipped: "read-only" };
   if (!slug) return { ok: false };
   try {
     const res = await post_({ action: "delete", slug });
@@ -134,6 +149,7 @@ function sheetProductToFields(p) {
     etiquetas: p.etiquetas || [],
     peso: p.peso || null,
     material: p.material || null,
+    marca: p.marca || null,
     genero: p.genero || null,
     orden: p.orden || 0,
   };
