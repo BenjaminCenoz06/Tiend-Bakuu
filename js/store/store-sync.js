@@ -59,6 +59,10 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
 function applyContent(s) {
   const c = s.contenido || {};
 
+  // Cantidad de productos en la portada (configurable; por defecto 12).
+  const n = parseInt(c.home_productos, 10);
+  if (n > 0) homeLimit = n;
+
   document.querySelectorAll("[data-cms]").forEach(el => {
     const key = el.getAttribute("data-cms");
     const val = c[key];
@@ -138,8 +142,8 @@ function renderCategories(cats) {
 }
 
 /* ---------- Catálogo real en la grilla principal ---------- */
-/** Cuántos productos se muestran en la portada (el resto vive en las categorías). */
-const HOME_LIMIT = 12;
+/** Cuántos productos se muestran en la portada (configurable desde el panel). */
+let homeLimit = 12;
 
 function renderCatalog(items) {
   const grid = document.querySelector("[data-grid]");
@@ -170,7 +174,7 @@ function renderCatalog(items) {
     (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0) ||
     (b.nuevo ? 1 : 0) - (a.nuevo ? 1 : 0) ||
     ((b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0))
-  ).slice(0, HOME_LIMIT);
+  ).slice(0, homeLimit);
 
   grid.innerHTML = preview.map(p => card(p)).join("");
   renderVerTodo(grid, items.length);
@@ -179,7 +183,7 @@ function renderCatalog(items) {
 /** Botón "Ver todo el catálogo" debajo de la grilla si hay más que el preview. */
 function renderVerTodo(grid, total) {
   let link = document.querySelector("[data-ver-todo]");
-  if (total <= HOME_LIMIT) { if (link) link.remove(); return; }
+  if (total <= homeLimit) { if (link) link.remove(); return; }
   if (!link) {
     link = document.createElement("div");
     link.setAttribute("data-ver-todo", "");

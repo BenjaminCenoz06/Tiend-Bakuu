@@ -652,6 +652,37 @@
 .toast-error svg { color: var(--danger); }
 .toast-info svg { color: var(--gold); }
 
+/* ---------- Barra fija de guardado (Configuración) ---------- */
+.cfg-savebar {
+  position: fixed;
+  left: 260px; right: 0; bottom: 0;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 0.8rem clamp(1rem, 3vw, 2rem);
+  padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 20px rgba(0,0,0,.18);
+}
+.cfg-savebar .btn { flex: 0 0 auto; }
+.cfg-savebar-hint { font-size: 0.82rem; color: var(--text-mute); margin-right: auto; }
+/* Sin sidebar fija (drawer): la barra ocupa todo el ancho */
+@media (max-width: 960px) { .cfg-savebar { left: 0; } }
+/* Móvil: apoyar la barra ARRIBA del tabbar inferior y estirar el botón */
+@media (max-width: 720px) {
+  .cfg-savebar {
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 0.8rem;
+  }
+  .cfg-savebar-hint { display: none; }
+  .cfg-savebar .btn { flex: 1; }
+}
+
 /* ---------- Skeleton de carga ---------- */
 .skeleton { background: linear-gradient(90deg, var(--surface-2), var(--surface-3), var(--surface-2)); background-size: 200% 100%; animation: sk 1.2s linear infinite; border-radius: 6px; }
 @keyframes sk { to { background-position: -200% 0; } }

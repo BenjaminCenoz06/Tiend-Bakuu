@@ -39,7 +39,7 @@ export const configuracionView = {
 
     el.innerHTML = `
       <div class="view-head"><h2>Configuración</h2><p>Todo lo que ves acá se refleja en tu tienda automáticamente.</p></div>
-      <form id="cfg-form" style="max-width:900px">
+      <form id="cfg-form" style="max-width:900px;padding-bottom:96px">
 
         <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Negocio</h3></div>
           <div class="panel-body form-grid">
@@ -188,6 +188,29 @@ export const configuracionView = {
               <input class="input" id="cn-rv3" name="review3_texto" value="${esc(cn.review3_texto || "")}"></div>
             <div class="field col-2"><label for="cn-rv3a">Reseña 3 — autor</label>
               <input class="input" id="cn-rv3a" name="review3_autor" value="${esc(cn.review3_autor || "")}"></div>
+
+            <div class="form-section-title">Portada</div>
+            <div class="field"><label for="cn-hp">Productos en la portada</label>
+              <input class="input" id="cn-hp" name="home_productos" type="number" min="1" max="60" value="${esc(cn.home_productos || "")}" placeholder="12">
+              <span class="field-hint">Cuántos productos se muestran en la home. El resto queda en las categorías.</span></div>
+
+            <div class="form-section-title">Menú del header</div>
+            <div class="field"><label for="cn-mc">Menú — "Colección"</label>
+              <input class="input" id="cn-mc" name="menu_coleccion" value="${esc(cn.menu_coleccion || "")}" placeholder="Colección"></div>
+            <div class="field"><label for="cn-ml">Menú — "El Local"</label>
+              <input class="input" id="cn-ml" name="menu_local" value="${esc(cn.menu_local || "")}" placeholder="El Local"></div>
+            <div class="field"><label for="cn-ma">Menú — "Ayuda"</label>
+              <input class="input" id="cn-ma" name="menu_ayuda" value="${esc(cn.menu_ayuda || "")}" placeholder="Ayuda"></div>
+
+            <div class="form-section-title">Footer — títulos de columnas</div>
+            <div class="field"><label for="cn-f1">Columna 1</label>
+              <input class="input" id="cn-f1" name="footer_col1_label" value="${esc(cn.footer_col1_label || "")}" placeholder="Tienda"></div>
+            <div class="field"><label for="cn-f2">Columna 2</label>
+              <input class="input" id="cn-f2" name="footer_col2_label" value="${esc(cn.footer_col2_label || "")}" placeholder="Ayuda"></div>
+            <div class="field"><label for="cn-f3">Columna 3</label>
+              <input class="input" id="cn-f3" name="footer_col3_label" value="${esc(cn.footer_col3_label || "")}" placeholder="BAKU"></div>
+            <div class="field"><label for="cn-f4">Columna 4</label>
+              <input class="input" id="cn-f4" name="footer_col4_label" value="${esc(cn.footer_col4_label || "")}" placeholder="Contacto"></div>
           </div></div>
 
         <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Medios de pago y envío</h3></div>
@@ -200,7 +223,8 @@ export const configuracionView = {
               <input class="input" data-chip-input="envios" placeholder="Escribí y Enter (ej: Andreani)"></div>
           </div></div>
 
-        <div style="display:flex;justify-content:flex-end;gap:.6rem;position:sticky;bottom:0;padding:1rem 0">
+        <div class="cfg-savebar">
+          <span class="cfg-savebar-hint">Los cambios se aplican en la tienda al guardar.</span>
           <button class="btn btn-lg" type="button" data-save>Guardar cambios</button>
         </div>
       </form>`;
@@ -299,6 +323,14 @@ export const configuracionView = {
         review2_autor: g("review2_autor"),
         review3_texto: g("review3_texto"),
         review3_autor: g("review3_autor"),
+        home_productos: g("home_productos"),
+        menu_coleccion: g("menu_coleccion"),
+        menu_local: g("menu_local"),
+        menu_ayuda: g("menu_ayuda"),
+        footer_col1_label: g("footer_col1_label"),
+        footer_col2_label: g("footer_col2_label"),
+        footer_col3_label: g("footer_col3_label"),
+        footer_col4_label: g("footer_col4_label"),
       },
     };
     const btn = this.el.querySelector("[data-save]");
