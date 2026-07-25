@@ -105,9 +105,18 @@ function renderCategories(cats) {
 }
 
 /* ---------- Catálogo real en la grilla principal ---------- */
+/** Cuántos productos se muestran en la portada (el resto vive en las categorías). */
+const HOME_LIMIT = 12;
+
 function renderCatalog(items) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
+
+  // Exponer SIEMPRE el catálogo completo al storefront (buscador, carrito, quickview),
+  // aunque en la portada solo se muestre un preview.
+  if (items && items.length && window.BAKU && typeof window.BAKU.injectProducts === "function") {
+    window.BAKU.injectProducts(items);
+  }
 
   if (!items || !items.length) {
     // Si ya existen tarjetas mostradas en la pantalla, no las pisamos con un error
@@ -116,17 +125,35 @@ function renderCatalog(items) {
       return;
     }
     grid.innerHTML = `<div class="sheets-notice" style="grid-column:1/-1;text-align:center;padding:3rem 1rem;color:var(--ink-mute)">
-      <p style="margin-bottom:0.5rem;font-size:1.1rem">⚠️ No se pudieron obtener los productos de Google Sheets en este momento.</p>
-      <p style="font-size:0.9rem">Por favor, reintentá recargando la página o verificá la conexión con la planilla.</p>
+      <p style="margin-bottom:0.5rem;font-size:1.1rem">⚠️ No se pudieron obtener los productos en este momento.</p>
+      <p style="font-size:0.9rem">Por favor, reintentá recargando la página.</p>
     </div>`;
     return;
   }
 
-  grid.innerHTML = items.map(p => card(p)).join("");
-  // Exponer al storefront para que el carrito/quickview conozcan estos productos
-  if (window.BAKU && typeof window.BAKU.injectProducts === "function") {
-    window.BAKU.injectProducts(items);
+  // Portada: solo un preview. Prioridad: destacados → nuevos → con stock.
+  // Así el admin controla qué 12 se ven marcando "Destacado" en el panel.
+  const preview = items.slice().sort((a, b) =>
+    (b.destacado ? 1 : 0) - (a.destacado ? 1 : 0) ||
+    (b.nuevo ? 1 : 0) - (a.nuevo ? 1 : 0) ||
+    ((b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0))
+  ).slice(0, HOME_LIMIT);
+
+  grid.innerHTML = preview.map(p => card(p)).join("");
+  renderVerTodo(grid, items.length);
+}
+
+/** Botón "Ver todo el catálogo" debajo de la grilla si hay más que el preview. */
+function renderVerTodo(grid, total) {
+  let link = document.querySelector("[data-ver-todo]");
+  if (total <= HOME_LIMIT) { if (link) link.remove(); return; }
+  if (!link) {
+    link = document.createElement("div");
+    link.setAttribute("data-ver-todo", "");
+    link.style.cssText = "text-align:center;margin:2.4rem auto 0;width:100%";
+    grid.after(link);
   }
+  link.innerHTML = `<a class="btn" href="categoria.html" style="display:inline-block;min-width:260px">Ver todo el catálogo (${total})</a>`;
 }
 
 function card(p) {
