@@ -7,7 +7,7 @@
 // =============================================================
 
 /** URL Endpoint de la API en Google Apps Script */
-export const SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbxZA1kPr8IFJohcvnzBwW8WsRxj1bUBaM0JLF7TpvIFQc-waf-9_uLOFmHIc86-TBgj/exec";
+export const SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbw9CrhFoY2hqDxDzFiUwOHv9TxLrpcMphWLDMbCegutmySplXwYMSQ8X9RMunYveOVG/exec";
 
 /** Clave de caché en sessionStorage (desactivado a 0ms para actualización en tiempo real al editar Sheets) */
 const CACHE_KEY = "baku_sheets_products_cache_v1";
