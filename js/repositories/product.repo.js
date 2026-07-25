@@ -166,10 +166,22 @@ class ProductRepository extends BaseRepository {
   }
 
   async _resolveCategoriaId(nombre) {
-    const found = await categoryRepo.getBy("nombre", nombre, "id");
+    const slug = slugify(nombre);
+    // Reutilizar categoría existente por slug (case-insensitive) o por nombre,
+    // para no duplicar (ej. STOCK "REMERAS" reusa la categoría "Remeras" ya creada).
+    let found = await categoryRepo.getBy("slug", slug, "id").catch(() => null);
     if (found) return found.id;
-    const created = await categoryRepo.create({ nombre, slug: slugify(nombre) });
-    return created.id;
+    found = await categoryRepo.getBy("nombre", nombre, "id").catch(() => null);
+    if (found) return found.id;
+    try {
+      const created = await categoryRepo.create({ nombre, slug });
+      return created.id;
+    } catch (_) {
+      // Colisión/carrera al crear: reintentar buscar por slug. Si no, sin categoría
+      // (el producto igual se importa, nunca se descarta por la categoría).
+      const again = await categoryRepo.getBy("slug", slug, "id").catch(() => null);
+      return again ? again.id : null;
+    }
   }
 
   countActivos() { return this.count({ activo: true }); }
