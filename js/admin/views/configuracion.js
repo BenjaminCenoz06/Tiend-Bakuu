@@ -28,7 +28,13 @@ export const configuracionView = {
     const c = cfg.colores || {};
     const ct = cfg.contacto || {};
     const rd = cfg.redes || {};
-    this._st = { logo_url: cfg.logo_url || "", pagos: (cfg.pagos || []).slice(), envios: (cfg.envios || []).slice() };
+    const cn = cfg.contenido || {};
+    this._st = {
+      logo_url: cfg.logo_url || "",
+      pagos: (cfg.pagos || []).slice(),
+      envios: (cfg.envios || []).slice(),
+      anuncios: (cn.anuncios || []).slice(),
+    };
 
     el.innerHTML = `
       <div class="view-head"><h2>Configuración</h2><p>Todo lo que ves acá se refleja en tu tienda automáticamente.</p></div>
@@ -90,6 +96,40 @@ export const configuracionView = {
             </div>
           </div></div>
 
+        <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Contenido de la tienda (portada)</h3></div>
+          <div class="panel-body form-grid">
+            <div class="field col-2"><label>Barra de anuncios (arriba de todo)</label>
+              <div class="chips" data-chips="anuncios"></div>
+              <input class="input" data-chip-input="anuncios" placeholder="Escribí un anuncio y Enter (ej: Envío gratis desde $150.000)">
+              <span class="field-hint">Cada frase se muestra girando en la barra superior de la tienda.</span></div>
+
+            <div class="form-section-title">Portada (Hero)</div>
+            <div class="field col-2"><label for="cn-kicker">Bajada chica (arriba del título)</label>
+              <input class="input" id="cn-kicker" name="hero_kicker" value="${esc(cn.hero_kicker || "")}" placeholder="Indumentaria masculina · Montevideo 32 · Nueva Córdoba"></div>
+            <div class="field"><label for="cn-t1">Título — línea 1</label>
+              <input class="input" id="cn-t1" name="hero_titulo1" value="${esc(cn.hero_titulo1 || "")}" placeholder="El street"></div>
+            <div class="field"><label for="cn-t2">Título — línea 2</label>
+              <input class="input" id="cn-t2" name="hero_titulo2" value="${esc(cn.hero_titulo2 || "")}" placeholder="de Córdoba"></div>
+            <div class="field col-2"><label for="cn-sub">Subtítulo</label>
+              <textarea class="input" id="cn-sub" name="hero_sub" placeholder="Remeras, hoodies, denim y accesorios…">${esc(cn.hero_sub || "")}</textarea></div>
+            <div class="field"><label for="cn-b1t">Botón 1 — texto</label>
+              <input class="input" id="cn-b1t" name="hero_btn1_texto" value="${esc(cn.hero_btn1_texto || "")}" placeholder="Ver lo nuevo"></div>
+            <div class="field"><label for="cn-b1l">Botón 1 — link</label>
+              <input class="input" id="cn-b1l" name="hero_btn1_link" value="${esc(cn.hero_btn1_link || "")}" placeholder="#nuevo  ó  categoria.html"></div>
+            <div class="field"><label for="cn-b2t">Botón 2 — texto</label>
+              <input class="input" id="cn-b2t" name="hero_btn2_texto" value="${esc(cn.hero_btn2_texto || "")}" placeholder="Explorar colección"></div>
+            <div class="field"><label for="cn-b2l">Botón 2 — link</label>
+              <input class="input" id="cn-b2l" name="hero_btn2_link" value="${esc(cn.hero_btn2_link || "")}" placeholder="#lookbook"></div>
+
+            <div class="form-section-title">Títulos de secciones</div>
+            <div class="field"><label for="cn-sp">Sección productos — título</label>
+              <input class="input" id="cn-sp" name="seccion_productos_titulo" value="${esc(cn.seccion_productos_titulo || "")}" placeholder="Nuevo ingreso"></div>
+            <div class="field"><label for="cn-spn">Sección productos — nota</label>
+              <input class="input" id="cn-spn" name="seccion_productos_nota" value="${esc(cn.seccion_productos_nota || "")}" placeholder="Ocho piezas. Cuando se van, se van."></div>
+            <div class="field col-2"><label for="cn-sc">Sección categorías — título</label>
+              <input class="input" id="cn-sc" name="seccion_categorias_titulo" value="${esc(cn.seccion_categorias_titulo || "")}" placeholder="Por dónde empezar"></div>
+          </div></div>
+
         <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Medios de pago y envío</h3></div>
           <div class="panel-body form-grid">
             <div class="field col-2"><label>Medios de pago</label>
@@ -121,7 +161,7 @@ export const configuracionView = {
   },
 
   _wireChips() {
-    ["pagos", "envios"].forEach(key => {
+    ["pagos", "envios", "anuncios"].forEach(key => {
       const cont = this.el.querySelector(`[data-chips="${key}"]`);
       const input = this.el.querySelector(`[data-chip-input="${key}"]`);
       const render = () => {
@@ -161,6 +201,20 @@ export const configuracionView = {
       redes: { instagram: g("instagram"), facebook: g("facebook"), tiktok: g("tiktok") },
       pagos: this._st.pagos,
       envios: this._st.envios,
+      contenido: {
+        anuncios: this._st.anuncios,
+        hero_kicker: g("hero_kicker"),
+        hero_titulo1: g("hero_titulo1"),
+        hero_titulo2: g("hero_titulo2"),
+        hero_sub: g("hero_sub"),
+        hero_btn1_texto: g("hero_btn1_texto"),
+        hero_btn1_link: g("hero_btn1_link"),
+        hero_btn2_texto: g("hero_btn2_texto"),
+        hero_btn2_link: g("hero_btn2_link"),
+        seccion_productos_titulo: g("seccion_productos_titulo"),
+        seccion_productos_nota: g("seccion_productos_nota"),
+        seccion_categorias_titulo: g("seccion_categorias_titulo"),
+      },
     };
     const btn = this.el.querySelector("[data-save]");
     btn.classList.add("is-loading"); btn.disabled = true;

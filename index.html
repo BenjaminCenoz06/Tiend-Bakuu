@@ -40,7 +40,7 @@
        TOP BAR — anuncio en marquee
        ========================================================== -->
   <div class="topbar" aria-hidden="true">
-    <div class="topbar-track">
+    <div class="topbar-track" data-cms-anuncios>
       <span>Envíos a todo el país — gratis desde $150.000</span><i>◆</i>
       <span>Local: Montevideo 32 · Nueva Córdoba</span><i>◆</i>
       <span>3 y 6 cuotas sin interés</span><i>◆</i>
@@ -154,15 +154,15 @@
       <div class="hero-grain" aria-hidden="true"></div>
 
       <div class="hero-inner">
-        <p class="hero-kicker reveal">Indumentaria masculina · Montevideo 32 · Nueva Córdoba</p>
+        <p class="hero-kicker reveal" data-cms="hero_kicker">Indumentaria masculina · Montevideo 32 · Nueva Córdoba</p>
         <h1 class="hero-title">
-          <span class="hero-line"><em>El street</em></span>
-          <span class="hero-line">de Córdoba<b>.</b></span>
+          <span class="hero-line"><em data-cms="hero_titulo1">El street</em></span>
+          <span class="hero-line"><span data-cms="hero_titulo2">de Córdoba</span><b>.</b></span>
         </h1>
-        <p class="hero-sub reveal">Remeras, hoodies, denim y accesorios seleccionados. Drops semanales en el local de Nueva Córdoba y envíos a todo el país.</p>
+        <p class="hero-sub reveal" data-cms="hero_sub">Remeras, hoodies, denim y accesorios seleccionados. Drops semanales en el local de Nueva Córdoba y envíos a todo el país.</p>
         <div class="hero-actions reveal">
-          <a class="btn btn-solid" href="#nuevo">Ver lo nuevo</a>
-          <a class="btn btn-line" href="#lookbook">Explorar colección</a>
+          <a class="btn btn-solid" href="#nuevo" data-cms="hero_btn1_texto" data-cms-link="hero_btn1_link">Ver lo nuevo</a>
+          <a class="btn btn-line" href="#lookbook" data-cms="hero_btn2_texto" data-cms-link="hero_btn2_link">Explorar colección</a>
         </div>
       </div>
 
@@ -193,8 +193,8 @@
     <section class="shop" id="nuevo">
       <header class="section-head reveal">
         <p class="section-kicker">01 — Tienda</p>
-        <h2>Nuevo ingreso</h2>
-        <p class="section-note">Ocho piezas. Cuando se van, se van.</p>
+        <h2 data-cms="seccion_productos_titulo">Nuevo ingreso</h2>
+        <p class="section-note" data-cms="seccion_productos_nota">Ocho piezas. Cuando se van, se van.</p>
       </header>
 
       <div class="grid" data-grid>
@@ -211,7 +211,7 @@
     <section class="cats" id="categorias">
       <header class="section-head reveal">
         <p class="section-kicker">02 — Categorías</p>
-        <h2>Por dónde empezar</h2>
+        <h2 data-cms="seccion_categorias_titulo">Por dónde empezar</h2>
       </header>
       <div class="cats-grid">
         <a class="cat reveal" href="#nuevo">

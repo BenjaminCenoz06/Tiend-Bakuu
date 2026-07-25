@@ -32,6 +32,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
     if (settings) {
       applyTheme(settings);
       applyBusinessInfo(settings);
+      applyContent(settings);
     }
 
     if (banners && banners.length) {
@@ -49,6 +50,33 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
     renderCatalog([]);
   }
 })();
+
+/* ---------- Contenido editable de la tienda (textos desde el panel) ----------
+   Cada elemento con [data-cms="clave"] toma su texto de settings.contenido.clave.
+   Los que además tengan [data-cms-link="clave2"] toman su href de esa clave.
+   La barra [data-cms-anuncios] se reconstruye desde el array contenido.anuncios.
+   Si una clave está vacía, se conserva el texto original (nunca se rompe). */
+function applyContent(s) {
+  const c = s.contenido || {};
+
+  document.querySelectorAll("[data-cms]").forEach(el => {
+    const key = el.getAttribute("data-cms");
+    const val = c[key];
+    if (val != null && String(val).trim() !== "") el.textContent = String(val);
+    const linkKey = el.getAttribute("data-cms-link");
+    if (linkKey && c[linkKey] != null && String(c[linkKey]).trim() !== "") {
+      el.setAttribute("href", String(c[linkKey]));
+    }
+  });
+
+  // Barra de anuncios (marquee): se reconstruye duplicando la lista para el loop.
+  const track = document.querySelector("[data-cms-anuncios]");
+  const anuncios = Array.isArray(c.anuncios) ? c.anuncios.filter(x => String(x || "").trim()) : [];
+  if (track && anuncios.length) {
+    const once = anuncios.map(a => `<span>${esc(a)}</span><i>◆</i>`).join("");
+    track.innerHTML = once + once; // dos vueltas = scroll continuo
+  }
+}
 
 /* ---------- Datos de contacto / redes desde el panel ---------- */
 function applyBusinessInfo(s) {
