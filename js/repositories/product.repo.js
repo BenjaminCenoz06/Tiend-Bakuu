@@ -151,10 +151,17 @@ class ProductRepository extends BaseRepository {
       payload.categoria_id = await this._resolveCategoriaId(categoriaNombre);
     }
 
-    // Match por slug y, si no aparece, por nombre — evita duplicar productos ya
-    // creados en el panel que todavía no tenían slug.
+    // El slug (grupo + variante + marca) es la identidad del producto.
     let existing = payload.slug ? await this.getBy("slug", payload.slug, "id") : null;
-    if (!existing && payload.nombre) existing = await this.getBy("nombre", payload.nombre, "id");
+
+    // Respaldo por nombre SOLO para adoptar filas viejas sin slug (creadas a
+    // mano en el panel). Si la fila encontrada ya tiene slug y es otro, se
+    // trata de un producto distinto que casualmente se llama igual —por
+    // ejemplo la misma prenda de otra marca— y debe crearse aparte.
+    if (!existing && payload.nombre) {
+      const porNombre = await this.getBy("nombre", payload.nombre, "id,slug");
+      if (porNombre && !porNombre.slug) existing = porNombre;
+    }
     if (existing) {
       await this.update(existing.id, payload);
       if (images && images.length) await this._syncImages(existing.id, images.map(url => ({ url })));

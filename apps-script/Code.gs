@@ -486,11 +486,13 @@ function findSupaProductId_(base, slug, nombre) {
     var f = JSON.parse(r.getContentText() || "[]");
     if (f.length) return f[0].id;
   }
+  // Respaldo por nombre SOLO para adoptar filas viejas sin slug. Si la fila
+  // ya tiene slug, es otro producto que se llama igual (p. ej. otra marca).
   if (nombre) {
-    var r2 = UrlFetchApp.fetch(base + "/rest/v1/products?nombre=eq." + encodeURIComponent(nombre) + "&select=id",
+    var r2 = UrlFetchApp.fetch(base + "/rest/v1/products?nombre=eq." + encodeURIComponent(nombre) + "&select=id,slug",
       { headers: supabaseHeaders_(), muteHttpExceptions: true });
     var f2 = JSON.parse(r2.getContentText() || "[]");
-    if (f2.length) return f2[0].id;
+    if (f2.length && !f2[0].slug) return f2[0].id;
   }
   return null;
 }
