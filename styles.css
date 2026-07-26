@@ -3487,3 +3487,134 @@ button.auth-stat:hover { transform: translateY(-2px); }
   .btn, .tool, .card-media, .cat, .footer-col a { transition-duration: 0.01ms; }
 }
 
+/* =============================================================
+   18. TEMA CLARO — lienzo blanco editorial + dorado BAKU
+   Re-skin por cascada sobre la sección 16: mantiene la identidad
+   (dorado + tinta cálida) pero sobre papel blanco. El footer queda
+   oscuro a propósito: ancla la marca y cierra la página.
+   ============================================================= */
+:root {
+  --bg:        #FFFFFF;   /* papel */
+  --bg-2:      #F4F2ED;   /* lienzo cálido: fotos de producto y bandas */
+  --paper:     #FFFFFF;   /* drawers, modales, mega menú */
+  --panel-2:   #F4F2ED;
+  --ink:       #14120C;   /* tinta cálida, nunca negro puro */
+  --ink-soft:  #3B362D;
+  --ink-mute:  #8A8377;
+  --line:      rgba(20, 18, 12, 0.10);
+  --line-soft: rgba(20, 18, 12, 0.06);
+
+  --gold:      #E8A63B;   /* dorado de marca: rellenos */
+  --gold-hi:   #F4BC5C;
+  --gold-deep: #A9761A;   /* dorado legible sobre blanco: texto e íconos */
+  --accent:    #A9761A;
+  --night:     #171204;   /* texto sobre dorado */
+  --dark-pin:  #14120C;
+  --dark-mute: #6E6757;
+
+  /* Sombras: sobre blanco tienen que ser casi imperceptibles */
+  --shadow-xs:   0 1px 2px rgba(20, 18, 12, 0.06);
+  --shadow-sm:   0 8px 20px -16px rgba(20, 18, 12, 0.28);
+  --shadow-md:   0 18px 40px -28px rgba(20, 18, 12, 0.26);
+  --shadow-lift: 0 26px 54px -34px rgba(20, 18, 12, 0.30);
+}
+
+body { background: var(--bg); color: var(--ink); }
+
+/* ---- Header: cristal blanco ---- */
+.header.is-solid {
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom-color: var(--line-soft);
+  box-shadow: 0 8px 26px -24px rgba(20, 18, 12, 0.5);
+}
+@supports (backdrop-filter: blur(14px)) {
+  .header.is-solid {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+  }
+}
+.tool:hover { background: rgba(20, 18, 12, 0.06); }
+
+/* ---- Logo: chico arriba, crece apenas al bajar ---- */
+.logo {
+  color: var(--gold-deep);
+  transform: scale(0.86);
+  transform-origin: center center;
+  transition: transform 0.34s var(--ease-out), color var(--dur-mid) var(--ease-out);
+}
+.header.is-solid .logo { transform: scale(1); }
+@media (prefers-reduced-motion: reduce) {
+  .logo, .header.is-solid .logo { transform: none; transition: none; }
+}
+
+/* ---- Botones: dorado sólido + contorno tinta ---- */
+.btn-solid { background: var(--gold); color: var(--night); }
+.btn-solid:hover {
+  background: var(--gold-hi);
+  box-shadow: 0 16px 32px -18px rgba(169, 118, 26, 0.55);
+}
+.btn-line { border-color: var(--ink); color: var(--ink); }
+.btn-line:hover { background: var(--ink); color: #FFFFFF; }
+
+/* ---- Tarjetas: definidas con una hairline sobre el blanco ---- */
+.card-media {
+  border: 1px solid var(--line-soft);
+  background:
+    radial-gradient(120% 90% at 50% 6%, #FFFFFF, transparent 62%),
+    var(--bg-2);
+}
+.card:hover .card-media { box-shadow: var(--shadow-lift); }
+.card-fav { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow-xs); }
+.card-btn { background: rgba(255, 255, 255, 0.94); color: var(--ink); }
+.card-btn:hover { background: #FFFFFF; }
+.card-btn-dark { background: var(--ink); color: #FFFFFF; }
+.card-btn-dark:hover { background: var(--ink-soft); }
+.cat { border: 1px solid var(--line-soft); }
+
+/* ---- Badges legibles sobre el lienzo claro ---- */
+.badge { background: var(--ink); color: #F7F6F3; }
+.badge-sale { background: var(--gold); color: var(--night); }
+.badge-new { background: var(--ink); color: #F7F6F3; }
+
+/* ---- Superficies flotantes: papel blanco ---- */
+.bottom-nav { background: rgba(255, 255, 255, 0.94); border-top-color: var(--line); }
+@supports (backdrop-filter: blur(10px)) {
+  .bottom-nav { background: rgba(255, 255, 255, 0.82); }
+}
+.pdp-bar { background: rgba(255, 255, 255, 0.95); border-top-color: var(--line); }
+@supports (backdrop-filter: blur(10px)) {
+  .pdp-bar { background: rgba(255, 255, 255, 0.88); }
+}
+.look-edge {
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+  border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+@supports (backdrop-filter: blur(8px)) {
+  .look-edge { background: rgba(255, 255, 255, 0.7); }
+}
+
+/* ---- Splash: papel blanco con el sello dorado ---- */
+.splash { background: #FFFFFF; }
+
+/* ---- Hero con foto: el lienzo sigue siendo oscuro, el texto va claro ----
+   (imprescindible: con el tema claro, --ink es tinta oscura y quedaría
+   ilegible sobre la fotografía del local). */
+.hero-photo .hero-title { color: #F8F6F0; }
+.hero-photo .hero-title em { color: #F8F6F0; }
+.hero-photo .hero-title b { color: var(--gold); }
+.hero-photo .hero-sub { color: #E7E1D2; }
+.hero-photo .hero-kicker { color: #D6CEB8; }
+.hero-photo .btn-line { color: #F8F6F0; border-color: rgba(248, 246, 240, 0.85); }
+.hero-photo .btn-line:hover { background: #F8F6F0; color: var(--ink); border-color: #F8F6F0; }
+.hero-photo .hero-seal { color: var(--gold); }
+
+/* ---- Detalles de color sobre blanco ---- */
+.section-kicker { color: var(--dark-mute); }
+.local-links a:hover { color: var(--gold-deep); }
+.footer-col a:hover { color: #FFFFFF; }
+::selection { background: var(--gold); color: var(--night); }
+:focus-visible { outline-color: var(--gold-deep); }
+

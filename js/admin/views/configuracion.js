@@ -86,7 +86,12 @@ export const configuracionView = {
 
         <div class="panel" style="margin-bottom:1.2rem"><div class="panel-head"><h3>Colores de la tienda</h3></div>
           <div class="panel-body">
-            <p class="field-hint" style="margin-bottom:1rem">Estos colores se aplican automáticamente al sitio.</p>
+            <p class="field-hint" style="margin-bottom:.75rem">Estos colores se aplican automáticamente al sitio.</p>
+            <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.1rem">
+              <button type="button" class="btn btn-ghost" data-preset="claro">☀️ Tema claro</button>
+              <button type="button" class="btn btn-ghost" data-preset="oscuro">🌙 Tema oscuro</button>
+              <span class="field-hint" style="align-self:center">Elegí un preset y tocá “Guardar cambios”.</span>
+            </div>
             <div class="form-grid">
               ${COLORES.map(([k, label]) => `
                 <div class="field"><label>${label}</label>
@@ -235,12 +240,33 @@ export const configuracionView = {
     el.querySelector("[data-save]").addEventListener("click", () => this._save());
   },
 
+  /** Paletas listas: mantienen el dorado BAKU y solo cambian el lienzo. */
+  _presets: {
+    claro:  { principal: "#FFFFFF", fondo: "#FFFFFF", header: "#FFFFFF", texto: "#14120C", secundario: "#E8A63B", boton: "#E8A63B", footer: "#0E0C07" },
+    oscuro: { principal: "#14120C", fondo: "#14120C", header: "#14120C", texto: "#F1ECDE", secundario: "#E8A63B", boton: "#E8A63B", footer: "#0E0C07" },
+  },
+
   _wireColors() {
     this.el.querySelectorAll("[data-color]").forEach(picker => {
       const k = picker.dataset.color;
       const hex = this.el.querySelector(`[data-color-hex="${k}"]`);
       picker.addEventListener("input", () => { hex.value = picker.value; });
       hex.addEventListener("input", () => { if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) picker.value = hex.value; });
+    });
+
+    // Presets: completan los 7 colores de una (el guardado sigue siendo manual).
+    this.el.querySelectorAll("[data-preset]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const pal = this._presets[btn.dataset.preset];
+        if (!pal) return;
+        Object.entries(pal).forEach(([k, v]) => {
+          const picker = this.el.querySelector(`[data-color="${k}"]`);
+          const hex = this.el.querySelector(`[data-color-hex="${k}"]`);
+          if (picker) picker.value = v;
+          if (hex) hex.value = v;
+        });
+        toast("Paleta aplicada. Tocá “Guardar cambios” para publicarla.", "info");
+      });
     });
   },
 
