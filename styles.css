@@ -3712,3 +3712,119 @@ body { background: var(--bg); color: var(--ink); }
   .card-photo, .card:hover .card-photo { transition: none; transform: none; }
 }
 
+/* =============================================================
+   20. MOVIMIENTO E INTERACCIÓN
+   Capa aditiva de microanimaciones. Todo con opacity/transform
+   (compositor GPU), sin librerías nuevas y apagable por completo
+   con prefers-reduced-motion.
+   ============================================================= */
+
+/* ---- Hero: las líneas del titular entran escalonadas ---- */
+@keyframes bakuLineIn {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: none; }
+}
+.hero-line {
+  display: block;
+  animation: bakuLineIn 0.95s var(--ease-out) both;
+}
+.hero-line:nth-child(1) { animation-delay: 0.25s; }
+.hero-line:nth-child(2) { animation-delay: 0.40s; }
+
+/* ---- Encabezados de sección: antetítulo → título → bajada ---- */
+.section-head.reveal > * {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+}
+.section-head.reveal.is-visible > * { opacity: 1; transform: none; }
+/* Red de seguridad: sin JS los títulos nunca deben quedar invisibles */
+html.no-js .section-head.reveal > *,
+.section-head.reveal[data-split] > * { opacity: 1; transform: none; }
+.section-head.reveal.is-visible > *:nth-child(1) { transition-delay: 0.05s; }
+.section-head.reveal.is-visible > *:nth-child(2) { transition-delay: 0.16s; }
+.section-head.reveal.is-visible > *:nth-child(3) { transition-delay: 0.27s; }
+
+/* ---- Botón sólido: barrido de luz al pasar el mouse ---- */
+.btn-solid { position: relative; overflow: hidden; isolation: isolate; }
+.btn-solid::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -60%;
+  width: 45%;
+  z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-18deg) translateX(0);
+  transition: transform 0.7s var(--ease-out);
+}
+.btn-solid:hover::after { transform: skewX(-18deg) translateX(420%); }
+
+/* ---- Herramientas del header y contadores ---- */
+.tool { transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.tool:hover { transform: translateY(-2px); }
+.tool:active { transform: translateY(0) scale(0.94); }
+@keyframes bakuPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.tool-count { animation: bakuPop 0.42s var(--ease-out) both; }
+
+/* ---- Badges de la tarjeta: aparecen con un pop corto ---- */
+.badge { animation: bakuPop 0.45s var(--ease-out) both; animation-delay: 0.25s; }
+
+/* ---- Favorito: latido al marcarlo ---- */
+@keyframes bakuHeart {
+  0% { transform: scale(1); } 35% { transform: scale(1.35); }
+  60% { transform: scale(0.92); } 100% { transform: scale(1); }
+}
+.card-fav.is-active svg { animation: bakuHeart 0.45s var(--ease-out); }
+.card-fav:hover { transform: scale(1.08); }
+
+/* ---- Categorías: velo y desplazamiento del nombre ---- */
+.cat-meta { transition: transform 0.45s var(--ease-out); }
+.cat:hover .cat-meta { transform: translateY(-4px); }
+.cat-name { transition: letter-spacing 0.45s var(--ease-out); }
+.cat:hover .cat-name { letter-spacing: 0.06em; }
+.cat-arrow { transition: transform 0.4s var(--ease-out); }
+
+/* ---- Marquesinas: se pausan al pasar el mouse (detalle interactivo) ---- */
+.topbar:hover .topbar-track,
+.ticker:hover .ticker-track { animation-play-state: paused; }
+
+/* ---- Tarjetas de reseñas y del local: elevación al hover ---- */
+.review, .local-card {
+  transition: transform var(--dur-mid) var(--ease-out), box-shadow var(--dur-mid) var(--ease-out);
+}
+.review:hover, .local-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ---- Chips de medios de pago ---- */
+.pay-chip { transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.pay-chip:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-2px); }
+
+/* ---- Botones de acción sobre la tarjeta: entran desde abajo ---- */
+.card-btn { transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.card-btn:hover { transform: translateY(-2px); }
+
+/* ---- Enlaces del footer: leve corrimiento ---- */
+.footer-col a { display: inline-block; transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.footer-col a:hover { transform: translateX(3px); }
+
+/* ---- Apagado total con preferencia de menos movimiento ---- */
+@media (prefers-reduced-motion: reduce) {
+  .hero-line { animation: none; opacity: 1; transform: none; }
+  .section-head.reveal > *,
+  .section-head.reveal.is-visible > * { opacity: 1; transform: none; transition: none; }
+  .btn-solid::after { display: none; }
+  .tool:hover, .tool:active,
+  .card-fav:hover, .card-btn:hover,
+  .review:hover, .local-card:hover,
+  .pay-chip:hover, .footer-col a:hover { transform: none; }
+  .tool-count, .badge, .card-fav.is-active svg { animation: none; }
+  .cat:hover .cat-meta { transform: none; }
+  .cat:hover .cat-name { letter-spacing: normal; }
+}
+
