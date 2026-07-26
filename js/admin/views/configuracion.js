@@ -35,6 +35,7 @@ export const configuracionView = {
       envios: (cfg.envios || []).slice(),
       anuncios: (cn.anuncios || []).slice(),
       ticker: (cn.ticker || []).slice(),
+      tema: (c.tema || "claro"),   // "claro" = lienzo blanco definido por el CSS
     };
 
     el.innerHTML = `
@@ -259,6 +260,7 @@ export const configuracionView = {
       btn.addEventListener("click", () => {
         const pal = this._presets[btn.dataset.preset];
         if (!pal) return;
+        this._st.tema = btn.dataset.preset;   // claro | oscuro
         Object.entries(pal).forEach(([k, v]) => {
           const picker = this.el.querySelector(`[data-color="${k}"]`);
           const hex = this.el.querySelector(`[data-color-hex="${k}"]`);
@@ -302,6 +304,7 @@ export const configuracionView = {
     const g = (name) => (this.el.querySelector(`[name="${name}"]`)?.value || "").trim();
     const colores = {};
     COLORES.forEach(([k]) => { colores[k] = this.el.querySelector(`[data-color-hex="${k}"]`).value; });
+    colores.tema = this._st.tema;   // claro | oscuro (define si manda el CSS o el panel)
     const patch = {
       nombre: g("nombre"),
       descripcion: g("descripcion"),

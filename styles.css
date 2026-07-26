@@ -3612,9 +3612,103 @@ body { background: var(--bg); color: var(--ink); }
 .hero-photo .hero-seal { color: var(--gold); }
 
 /* ---- Detalles de color sobre blanco ---- */
-.section-kicker { color: var(--dark-mute); }
 .local-links a:hover { color: var(--gold-deep); }
 .footer-col a:hover { color: #FFFFFF; }
 ::selection { background: var(--gold); color: var(--night); }
 :focus-visible { outline-color: var(--gold-deep); }
+
+/* =============================================================
+   19. TIPOGRAFÍA SOBRE BLANCO + MICROANIMACIONES
+   Sobre papel blanco el texto fino pierde cuerpo y los grises
+   claros bajan de contraste: acá se compensan pesos y neutros,
+   y se suman animaciones sobrias (solo opacidad y transform).
+   ============================================================= */
+:root {
+  --ink-mute: #6F6A5F;   /* AA sobre blanco también en textos chicos */
+  --dark-mute: #6F6A5F;
+}
+
+/* Jerarquía: antetítulo dorado, titular más compacto, bajada legible */
+.section-kicker {
+  color: var(--gold-deep);
+  font-weight: 500;
+  letter-spacing: 0.28em;
+}
+.section-head h2 { letter-spacing: -0.022em; }
+.section-note {
+  color: var(--ink-mute);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+/* Texto de producto: más cuerpo y aire sobre el blanco */
+.card-name { font-weight: 600; letter-spacing: 0.012em; color: var(--ink); }
+.card-price { font-weight: 500; color: var(--ink); }
+.card-price s { color: var(--ink-mute); }
+.card-color {
+  color: var(--ink-mute);
+  font-size: 0.74rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Copys generales: 300 se ve anémico sobre blanco */
+.hero-sub, .footer-col li, .local-links li, .studio-col p { font-weight: 400; }
+.footer-label { color: rgba(244, 241, 234, 0.55); }
+
+/* ---- Entrada escalonada de las tarjetas (se ejecuta una vez) ---- */
+@keyframes bakuCardIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+.grid .card,
+[data-cat-grid] .card {
+  animation: bakuCardIn 0.62s var(--ease-out) both;
+}
+.grid .card:nth-child(1),  [data-cat-grid] .card:nth-child(1)  { animation-delay: 0.02s; }
+.grid .card:nth-child(2),  [data-cat-grid] .card:nth-child(2)  { animation-delay: 0.06s; }
+.grid .card:nth-child(3),  [data-cat-grid] .card:nth-child(3)  { animation-delay: 0.10s; }
+.grid .card:nth-child(4),  [data-cat-grid] .card:nth-child(4)  { animation-delay: 0.14s; }
+.grid .card:nth-child(5),  [data-cat-grid] .card:nth-child(5)  { animation-delay: 0.18s; }
+.grid .card:nth-child(6),  [data-cat-grid] .card:nth-child(6)  { animation-delay: 0.22s; }
+.grid .card:nth-child(7),  [data-cat-grid] .card:nth-child(7)  { animation-delay: 0.26s; }
+.grid .card:nth-child(8),  [data-cat-grid] .card:nth-child(8)  { animation-delay: 0.30s; }
+.grid .card:nth-child(n+9), [data-cat-grid] .card:nth-child(n+9) { animation-delay: 0.34s; }
+
+/* ---- Hover de tarjeta: elevación suave + zoom contenido de la imagen ---- */
+.card-media {
+  transition: box-shadow var(--dur-mid) var(--ease-out),
+              transform var(--dur-mid) var(--ease-out),
+              border-color var(--dur-mid) var(--ease-out);
+}
+.card:hover .card-media {
+  transform: translateY(-5px);
+  border-color: var(--line);
+}
+.card-photo {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.75s var(--ease-out);
+}
+.card:hover .card-photo { transform: scale(1.05); }
+.card-name a { transition: color var(--dur-fast) var(--ease-out); }
+.card:hover .card-name a { color: var(--gold-deep); }
+
+/* Categorías: mismo lenguaje de elevación */
+.cat { transition: box-shadow var(--dur-mid) var(--ease-out), transform var(--dur-mid) var(--ease-out); }
+.cat:hover { transform: translateY(-5px); }
+
+/* Enlaces del menú: subrayado que barre en dorado */
+.nav-links a::after { background: var(--gold-deep); transition: transform 0.34s var(--ease-out); }
+
+/* Foco visible más elegante */
+:focus-visible { outline-width: 2px; outline-offset: 3px; }
+
+/* ---- Accesibilidad: sin movimiento si el sistema lo pide ---- */
+@media (prefers-reduced-motion: reduce) {
+  .grid .card, [data-cat-grid] .card { animation: none; }
+  .card:hover .card-media,
+  .cat:hover { transform: none; }
+  .card-photo, .card:hover .card-photo { transition: none; transform: none; }
+}
 

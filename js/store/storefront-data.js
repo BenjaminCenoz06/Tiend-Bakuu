@@ -65,25 +65,42 @@ export async function fetchProducts() {
   return data;
 }
 
-/** Aplica los colores del panel como variables CSS + overrides del sitio. */
+/**
+ * Aplica los colores del panel como variables CSS + overrides del sitio.
+ *
+ * Modo de tema (`colores.tema`):
+ *   "claro" (por defecto) → el lienzo lo define el CSS (Sección 18: papel
+ *      blanco + tinta cálida). Del panel solo se toma el dorado de marca,
+ *      así el contraste de textos queda siempre garantizado.
+ *   "oscuro" | "personalizado" → se respetan los colores del panel
+ *      (fondo, texto, header, footer, botón) como antes.
+ */
 export function applyTheme(settings) {
   if (!settings) return;
   const c = settings.colores || {};
   const root = document.documentElement.style;
   const setVar = (k, v) => { if (v) root.setProperty(k, v); };
 
-  // Variables base (NO tocar --bg-2: es el lienzo claro de las tarjetas)
-  setVar("--bg", c.fondo || c.principal);
+  const tema = String(c.tema || "claro").toLowerCase();
+  const usarLienzoDelPanel = tema !== "claro";
+
+  // Dorado de marca: se respeta siempre (identidad BAKU).
   setVar("--gold", c.secundario);
   setVar("--gold-hi", c.secundario);
-  setVar("--accent", c.boton || c.secundario);
-  setVar("--ink", c.texto);
   if (c.secundario) setVar("--night", contrast(c.secundario));   // texto sobre el dorado
+
+  // Lienzo y texto: solo cuando el tema no es el claro por defecto.
+  // (NO tocar --bg-2: es el lienzo de las fotos de producto)
+  if (usarLienzoDelPanel) {
+    setVar("--bg", c.fondo || c.principal);
+    setVar("--ink", c.texto);
+    setVar("--accent", c.boton || c.secundario);
+  }
 
   // Colores "hardcodeados" (footer/header) → override con <style> inyectado
   const rules = [];
-  if (c.footer) rules.push(`.footer{background:${c.footer} !important}`);
-  if (c.header) rules.push(`.header.is-solid{background:${hexToRgba(c.header, 0.9)} !important}`);
+  if (usarLienzoDelPanel && c.footer) rules.push(`.footer{background:${c.footer} !important}`);
+  if (usarLienzoDelPanel && c.header) rules.push(`.header.is-solid{background:${hexToRgba(c.header, 0.9)} !important}`);
   if (c.boton || c.secundario) {
     const g = c.boton || c.secundario;
     rules.push(`.btn-solid,.topbar,.wa-float{--wa:${g}}`);
