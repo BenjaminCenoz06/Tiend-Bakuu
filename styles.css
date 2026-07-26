@@ -3828,3 +3828,79 @@ html.no-js .section-head.reveal > *,
   .cat:hover .cat-name { letter-spacing: normal; }
 }
 
+/* =============================================================
+   21. INTENSIDAD — que el movimiento se note
+   Amplía recorridos y tiempos de la capa anterior y, donde el
+   navegador lo soporta, ata las entradas al scroll (los elementos
+   aparecen mientras bajás, no una sola vez al cargar).
+   ============================================================= */
+
+/* ---- Entradas con más recorrido ---- */
+@keyframes bakuRise {
+  from { opacity: 0; transform: translateY(52px) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Entrada de tarjetas ATADA AL SCROLL.
+   `js-reveal` la agrega revealOnScroll() (storefront-data.js) recién
+   después de renderizar: si el JS no corre, la tarjeta se ve igual. */
+.grid .card.js-reveal,
+[data-cat-grid] .card.js-reveal {
+  opacity: 0;
+  transform: translateY(64px) scale(0.93);
+  transition: opacity 0.85s var(--ease-out), transform 0.85s var(--ease-out);
+  will-change: opacity, transform;
+}
+.grid .card.js-reveal.is-in,
+[data-cat-grid] .card.js-reveal.is-in {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+/* Cascada por columna: las de una misma fila entran escalonadas */
+.grid .card.js-reveal:nth-child(4n+2), [data-cat-grid] .card.js-reveal:nth-child(4n+2) { transition-delay: 0.09s; }
+.grid .card.js-reveal:nth-child(4n+3), [data-cat-grid] .card.js-reveal:nth-child(4n+3) { transition-delay: 0.18s; }
+.grid .card.js-reveal:nth-child(4n+4), [data-cat-grid] .card.js-reveal:nth-child(4n+4) { transition-delay: 0.27s; }
+
+/* Encabezados: más recorrido y cascada más marcada */
+.section-head.reveal > * {
+  transform: translateY(34px);
+  transition: opacity 0.95s var(--ease-out), transform 0.95s var(--ease-out);
+}
+.section-head.reveal.is-visible > *:nth-child(1) { transition-delay: 0.06s; }
+.section-head.reveal.is-visible > *:nth-child(2) { transition-delay: 0.22s; }
+.section-head.reveal.is-visible > *:nth-child(3) { transition-delay: 0.38s; }
+
+/* Reveal general del sitio: recorrido más largo */
+.reveal { transform: translateY(42px); }
+
+/* ---- Hover con más presencia ---- */
+.card:hover .card-media { transform: translateY(-10px); box-shadow: 0 34px 64px -34px rgba(20, 18, 12, 0.42); }
+.card:hover .card-photo { transform: scale(1.09); }
+.cat:hover { transform: translateY(-10px); }
+.cat:hover .cat-art { transform: scale(1.12) translateY(-8px); }
+.btn-solid:hover, .btn-line:hover { transform: translateY(-3px); }
+.tool:hover { transform: translateY(-3px); }
+.review:hover, .local-card:hover { transform: translateY(-7px); }
+.card-btn:hover { transform: translateY(-3px); }
+
+/* NOTA: se evaluó atar estas entradas al scroll con `animation-timeline:
+   view()`. Se descartó: al medirlo, tarjetas ya visibles en pantalla
+   quedaban con opacidad 0 (productos invisibles). Las entradas se
+   mantienen al renderizar y las secciones siguen revelándose al bajar
+   mediante el IntersectionObserver que ya tenía el sitio. */
+
+/* ---- Apagado total con preferencia de menos movimiento ---- */
+@media (prefers-reduced-motion: reduce) {
+  .grid .card, [data-cat-grid] .card,
+  .grid .card.js-reveal, [data-cat-grid] .card.js-reveal {
+    animation: none; opacity: 1; transform: none; transition: none;
+  }
+  .reveal { transform: none; }
+  .section-head.reveal > * { transform: none; }
+  .card:hover .card-media, .card:hover .card-photo,
+  .cat:hover, .cat:hover .cat-art,
+  .btn-solid:hover, .btn-line:hover, .tool:hover,
+  .review:hover, .local-card:hover, .card-btn:hover { transform: none; }
+}
+

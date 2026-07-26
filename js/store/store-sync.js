@@ -6,7 +6,7 @@
 //  Es tolerante a fallos: si Supabase no responde, la tienda queda
 //  con su catálogo/branding de base (nunca se rompe).
 // =============================================================
-import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts, revealOnScroll } from "./storefront-data.js";
 import { getColorHex } from "../core/colorDictionary.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -177,6 +177,7 @@ function renderCatalog(items) {
   ).slice(0, homeLimit);
 
   grid.innerHTML = preview.map(p => card(p)).join("");
+  revealOnScroll(grid);
   renderVerTodo(grid, items.length);
 }
 

@@ -10,6 +10,69 @@ import { supabase } from "../core/client.js";
 
 const PRODUCTS_CACHE_KEY = "baku_last_products_v3";
 
+/**
+ * Hace que las tarjetas ya renderizadas entren animadas al aparecer en
+ * pantalla (el observador de main.js solo mira el HTML inicial, y estas
+ * se crean después).
+ *
+ * Diseño a prueba de fallos: el CSS deja las tarjetas VISIBLES por
+ * defecto y solo las oculta cuando esta función agrega `js-reveal`.
+ * Si el JS no corre, o no hay IntersectionObserver, o el visitante pidió
+ * menos movimiento, se ven igual — nunca queda un producto invisible.
+ */
+export function revealOnScroll(root, selector = ".card") {
+  if (!root) return;
+  const els = Array.from(root.querySelectorAll(selector));
+  if (!els.length) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;  // quedan visibles
+
+  const limite = () => window.innerHeight * 0.92;
+
+  // Solo se ocultan las que están por DEBAJO del pliegue: lo que el visitante
+  // ya tiene en pantalla nunca parpadea.
+  let pendientes = els.filter(el => el.getBoundingClientRect().top > limite());
+  if (!pendientes.length) return;
+  pendientes.forEach(el => el.classList.add("js-reveal"));
+
+  let enCola = false;
+  const revisar = () => {
+    enCola = false;
+    const y = limite();
+    pendientes = pendientes.filter(el => {
+      if (el.getBoundingClientRect().top < y) { el.classList.add("is-in"); return false; }
+      return true;
+    });
+    if (!pendientes.length) {
+      removeEventListener("scroll", alScrollear);
+      removeEventListener("resize", alScrollear);
+    }
+  };
+  const alScrollear = () => {
+    if (!enCola) { enCola = true; requestAnimationFrame(revisar); }
+  };
+
+  addEventListener("scroll", alScrollear, { passive: true });
+  addEventListener("resize", alScrollear, { passive: true });
+  revisar();
+
+  // Redundancia: si en algún navegador no llegaran los eventos de scroll,
+  // el IntersectionObserver cubre igual. Cualquiera de los dos alcanza.
+  if ("IntersectionObserver" in window) {
+    const io = new IntersectionObserver((entradas) => {
+      entradas.forEach(e => { if (e.isIntersecting) { e.target.classList.add("is-in"); io.unobserve(e.target); } });
+    }, { threshold: 0.05 });
+    pendientes.forEach(el => io.observe(el));
+  }
+
+  // Red de seguridad final: a los 3 s nada que esté dentro del viewport puede
+  // seguir oculto, fallen los eventos que fallen.
+  setTimeout(() => {
+    els.forEach(el => {
+      if (el.getBoundingClientRect().top < window.innerHeight) el.classList.add("is-in");
+    });
+  }, 3000);
+}
+
 /** Últimos productos conocidos (para pintar la grilla en 0ms mientras llega la respuesta real). */
 export function getCachedProducts() {
   try {

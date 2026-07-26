@@ -4,7 +4,7 @@
 //  obtenidos desde Supabase, con filtros (precio, talle, color,
 //  disponibilidad) aplicados en cliente sobre la lista ya cargada.
 // =============================================================
-import { fetchSettings, fetchProducts, toStoreProduct, applyTheme, getCachedProducts } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, toStoreProduct, applyTheme, getCachedProducts, revealOnScroll } from "./storefront-data.js";
 import { getColorHex } from "../core/colorDictionary.js";
 import "./shop.js"; // activa el carrito + botón del header
 
@@ -86,7 +86,7 @@ let baseProducts = []; // productos de la categoría actual, sin filtrar
       }
       return;
     }
-    if (grid) grid.innerHTML = list.map(card).join("");
+    if (grid) { grid.innerHTML = list.map(card).join(""); revealOnScroll(grid); }
   }
 
   function renderFilters() {
