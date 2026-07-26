@@ -63,18 +63,22 @@ export const productosView = {
 
   async _onSync() {
     const btn = this.el.querySelector("[data-sync]");
+    const rotulo = btn.textContent;
     btn.disabled = true; btn.classList.add("is-loading");
     try {
+      const t0 = performance.now();
       const rows = await pullAllFromSheet();
-      for (const row of rows) {
-        await productRepo.upsertFromSheet(row).catch((err) => console.warn("[sync]", row.slug, err.message));
-      }
-      toast(`Sincronizado: ${rows.length} producto(s) desde Sheets`, "ok");
+      const total = await productRepo.bulkUpsertFromSheet(rows, (hechos, cuantos) => {
+        btn.textContent = `Sincronizando… ${hechos}/${cuantos}`;
+      });
+      const seg = ((performance.now() - t0) / 1000).toFixed(1);
+      toast(`Sincronizado: ${total} producto(s) en ${seg}s`, "ok");
       this._paintSyncNote();
       await this._reload();
     } catch (err) {
       toast("No se pudo sincronizar: " + err.message, "error");
     } finally {
+      btn.textContent = rotulo;
       btn.disabled = false; btn.classList.remove("is-loading");
     }
   },

@@ -172,6 +172,85 @@ class ProductRepository extends BaseRepository {
     return created.id;
   }
 
+  /**
+   * Importación MASIVA de la planilla (la que usa el botón "Sincronizar").
+   *
+   * `upsertFromSheet` hace ~5 consultas por producto y de a una: con 300
+   * prendas son ~1500 idas y vueltas (minutos). Acá se resuelve todo en
+   * bloque: las categorías se leen una sola vez y los productos se mandan
+   * en lotes con upsert por `slug` (que es UNIQUE en la base).
+   *
+   * @param {Array}    rows        Filas ya normalizadas por pullAllFromSheet().
+   * @param {Function} [onProgress] (hechos, total) para la barra de progreso.
+   * @returns {Promise<number>} Cantidad de productos sincronizados.
+   */
+  async bulkUpsertFromSheet(rows, onProgress) {
+    if (!rows || !rows.length) return 0;
+
+    // 1) Categorías: una sola lectura + alta en bloque de las que falten.
+    const cats = await categoryRepo.list({}, {}).catch(() => []);
+    const catIdPorSlug = new Map(cats.map(c => [c.slug, c.id]));
+    const nombresCat = [...new Set(rows.map(r => r.categoriaNombre).filter(Boolean))];
+    const faltantes = nombresCat.filter(n => !catIdPorSlug.has(slugify(n)));
+    if (faltantes.length) {
+      const { data } = await supabase.from("categories")
+        .insert(faltantes.map(n => ({ nombre: n, slug: slugify(n) })))
+        .select("id,slug");
+      (data || []).forEach(c => catIdPorSlug.set(c.slug, c.id));
+    }
+
+    // 2) Armar los payloads y descartar filas repetidas de la planilla
+    //    (dos filas idénticas comparten slug y el upsert las unificaría igual).
+    const porSlug = new Map();
+    const conImagenes = [];
+    for (const row of rows) {
+      const { categoriaNombre, images, ...rest } = row;
+      if (!rest.slug) continue;
+      porSlug.set(rest.slug, {
+        ...rest,
+        categoria_id: categoriaNombre ? (catIdPorSlug.get(slugify(categoriaNombre)) || null) : null,
+      });
+      if (images && images.length) conImagenes.push({ slug: rest.slug, images });
+    }
+    const payloads = [...porSlug.values()];
+
+    // 3) Adoptar filas viejas SIN slug creadas a mano en el panel: se les
+    //    asigna el slug que les corresponde para que el upsert las actualice
+    //    en vez de duplicarlas. Suelen ser muy pocas.
+    const { data: sinSlug } = await supabase.from("products").select("id,nombre").is("slug", null);
+    if (sinSlug && sinSlug.length) {
+      const slugPorNombre = new Map(payloads.map(p => [p.nombre, p.slug]));
+      await Promise.all(sinSlug.map(fila => {
+        const slug = slugPorNombre.get(fila.nombre);
+        return slug ? supabase.from("products").update({ slug }).eq("id", fila.id) : null;
+      }).filter(Boolean));
+    }
+
+    // 4) Upsert por lotes: una sola consulta cada 150 productos.
+    const LOTE = 150;
+    let hechos = 0;
+    for (let i = 0; i < payloads.length; i += LOTE) {
+      const lote = payloads.slice(i, i + LOTE);
+      const { error } = await supabase.from("products").upsert(lote, { onConflict: "slug" });
+      if (error) throw new Error(error.message);
+      hechos += lote.length;
+      if (onProgress) onProgress(hechos, payloads.length);
+    }
+
+    // 5) Imágenes: solo para las filas que realmente traen fotos.
+    if (conImagenes.length) {
+      const { data: creados } = await supabase.from("products")
+        .select("id,slug").in("slug", conImagenes.map(x => x.slug));
+      const idPorSlug = new Map((creados || []).map(p => [p.slug, p.id]));
+      for (const item of conImagenes) {
+        const id = idPorSlug.get(item.slug);
+        if (id) await this._syncImages(id, item.images.map(url => ({ url })));
+      }
+    }
+
+    return payloads.length;
+  }
+
   async _resolveCategoriaId(nombre) {
     const slug = slugify(nombre);
     // Reutilizar categoría existente por slug (case-insensitive) o por nombre,
