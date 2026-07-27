@@ -3998,3 +3998,43 @@ html.no-js .section-head.reveal > *,
   .badge { animation: none; }
   .sheets-loading::before, .sheets-loading::after { animation: none; }
 }
+
+/* =============================================================
+   23. HERO SOLO IMAGEN
+   El banner es el protagonista: sin títulos, sin botones y sin
+   ninguna capa que ensucie la foto (tenía blur 7px, un zoom de
+   1.18 y un degradado oscuro encima).
+   Para volver a la versión con textos: rama `hero-con-textos`
+   o la etiqueta `respaldo-hero-con-textos`.
+   ============================================================= */
+
+/* Fuera todo lo que tapa la imagen */
+.hero-inner,
+.hero-ghost,
+.hero-grain,
+.hero-seal,
+.hero-scroll,
+.hero-bg-tint { display: none !important; }
+
+/* La foto, limpia: sin desenfoque, sin zoom, sin filtros */
+.hero-bg img {
+  transform: none;
+  filter: none;
+  object-fit: cover;
+  object-position: center;
+}
+.hero-slide { transform: none; }
+
+/* El hero deja de ser una caja de texto y pasa a ser el marco de la foto */
+.hero {
+  padding: 0;
+  min-height: 0;
+  height: clamp(340px, 62vh, 640px);
+  display: block;
+}
+.hero-bg { position: absolute; inset: 0; }
+
+/* En celular, un alto proporcionado para que la foto no quede recortada */
+@media (max-width: 720px) {
+  .hero { height: clamp(260px, 46vh, 420px); }
+}
