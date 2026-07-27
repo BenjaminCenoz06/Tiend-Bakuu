@@ -4175,29 +4175,29 @@ picture.hero-slide { display: block; }
 .hero-bg { overflow: hidden; }   /* el zoom no se escapa del marco */
 
 /* ---- Puntitos ---- */
+/* Indicadores meramente informativos: no se tocan, el pasaje es automático */
 .hero-dots {
   position: absolute;
   left: 50%; bottom: clamp(0.8rem, 2.2vh, 1.4rem);
   translate: -50% 0;
   z-index: 3;
   display: flex;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
+  gap: 0.45rem;
+  padding: 0.38rem 0.55rem;
   border-radius: 999px;
-  background: rgba(20, 18, 12, 0.28);
+  background: rgba(20, 18, 12, 0.26);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;          /* no interfiere con nada de la portada */
 }
 .hero-dot {
-  width: 7px; height: 7px;
+  display: block;
+  width: 6px; height: 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.5);
   transition: width 0.35s var(--ease-out), background 0.35s var(--ease-out);
-  cursor: pointer;
 }
-.hero-dot:hover { background: #fff; }
-.hero-dot.is-on { width: 22px; background: var(--gold); }
-.hero-dot:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.hero-dot.is-on { width: 20px; background: var(--gold); }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-slide, .hero-slide.is-active { transition: opacity 0.3s linear; transform: none; }

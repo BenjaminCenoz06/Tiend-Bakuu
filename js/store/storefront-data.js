@@ -261,6 +261,11 @@ export function applyHeroBanners(banners) {
   const oldImg = bg.querySelector("img");
   if (oldImg) oldImg.remove();
   bg.querySelectorAll(".hero-slide").forEach(s => s.remove());
+  // Limpiar un carrusel anterior: si esta función se llama dos veces
+  // (por ejemplo al recargar la configuración) se duplicarían los
+  // indicadores y quedarían dos relojes corriendo a la vez.
+  if (bg.parentElement) bg.parentElement.querySelectorAll(".hero-dots").forEach(d => d.remove());
+  if (window.__bakuHeroReloj) { clearInterval(window.__bakuHeroReloj); window.__bakuHeroReloj = null; }
 
   const CORTE_MOVIL = "(max-width: 768px)";
 
@@ -315,28 +320,25 @@ export function applyHeroBanners(banners) {
  * ordenados por `orden`). Con un solo banner esto ni se ejecuta.
  */
 function iniciarCarrusel(bg, slides) {
-  const INTERVALO = 6000;
+  const INTERVALO = 4500;   // ritmo parejo: ni apurado ni pesado
   const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Puntitos para saber cuántos banners hay y poder saltar entre ellos
+  // Indicadores solo informativos: muestran cuántos banners hay, pero no
+  // se pueden tocar — el pasaje es siempre automático.
   const puntos = document.createElement("div");
   puntos.className = "hero-dots";
-  puntos.setAttribute("role", "tablist");
-  puntos.setAttribute("aria-label", "Banners");
+  puntos.setAttribute("aria-hidden", "true");
   slides.forEach((_, i) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "hero-dot" + (i === 0 ? " is-on" : "");
-    b.setAttribute("aria-label", `Banner ${i + 1}`);
-    b.addEventListener("click", () => mostrar(i, true));
-    puntos.appendChild(b);
+    const d = document.createElement("span");
+    d.className = "hero-dot" + (i === 0 ? " is-on" : "");
+    puntos.appendChild(d);
   });
   bg.parentElement.appendChild(puntos);
 
   let idx = 0;
   let reloj = null;
 
-  function mostrar(nuevo, manual) {
+  function mostrar(nuevo) {
     if (nuevo === idx) return;
     slides[idx].classList.remove("is-active");
     idx = nuevo;
@@ -344,13 +346,13 @@ function iniciarCarrusel(bg, slides) {
     puntos.querySelectorAll(".hero-dot").forEach((d, i) => d.classList.toggle("is-on", i === idx));
     // Cada banner puede tener su propia forma: el hero se adapta.
     ajustarFormaDelHero(slides[idx]);
-    if (manual) programar();          // reinicia la cuenta tras un clic
   }
 
   function programar() {
     clearInterval(reloj);
     if (quieto) return;               // sin movimiento: se queda en el primero
     reloj = setInterval(() => mostrar((idx + 1) % slides.length), INTERVALO);
+    window.__bakuHeroReloj = reloj;   // referencia para poder cortarlo al reiniciar
   }
 
   // No consumir batería ni "saltar" varios banners con la pestaña oculta
