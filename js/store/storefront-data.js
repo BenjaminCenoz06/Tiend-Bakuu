@@ -321,7 +321,6 @@ export function applyHeroBanners(banners) {
  */
 function iniciarCarrusel(bg, slides) {
   const INTERVALO = 2000;   // cambio cada 2 segundos
-  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Indicadores solo informativos: muestran cuántos banners hay, pero no
   // se pueden tocar — el pasaje es siempre automático.
@@ -350,7 +349,9 @@ function iniciarCarrusel(bg, slides) {
 
   function programar() {
     clearInterval(reloj);
-    if (quieto) return;               // sin movimiento: se queda en el primero
+    // El pasaje ocurre siempre. Si el visitante pidió menos movimiento,
+    // el CSS lo reduce a un fundido simple (sin el acercamiento), que es
+    // el efecto que realmente molesta; el banner igual se muestra.
     reloj = setInterval(() => mostrar((idx + 1) % slides.length), INTERVALO);
     window.__bakuHeroReloj = reloj;   // referencia para poder cortarlo al reiniciar
   }
