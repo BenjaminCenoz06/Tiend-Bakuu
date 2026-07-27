@@ -4038,3 +4038,20 @@ html.no-js .section-head.reveal > *,
 @media (max-width: 720px) {
   .hero { height: clamp(260px, 46vh, 420px); }
 }
+
+/* =============================================================
+   24. HERO A LA MEDIDA DEL BANNER (1672 × 941 ≈ 16:9)
+   El marco toma la misma proporción que la imagen, así se ve
+   completa y sin recortes en cualquier pantalla. El tope evita
+   que en monitores anchos empuje el catálogo fuera de la vista.
+   ============================================================= */
+.hero {
+  width: 100%;                 /* si el tope de alto actúa, preferimos un
+                                  recorte leve antes que franjas blancas */
+  height: auto;
+  aspect-ratio: 1672 / 941;
+  max-height: calc(100svh - var(--header-h) - var(--topbar-h));
+}
+@media (max-width: 720px) {
+  .hero { width: 100%; height: auto; aspect-ratio: 1672 / 941; }
+}
