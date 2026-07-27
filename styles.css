@@ -4114,3 +4114,22 @@ picture.hero-slide { display: block; }
   object-fit: cover;
   object-position: center;
 }
+
+/* =============================================================
+   27. EL HERO TOMA LA FORMA DE LA IMAGEN VISIBLE
+   `--hero-ar` la escribe applyHeroBanners() con las medidas reales
+   de la imagen que el navegador eligió. En escritorio queda
+   apaisado; en celular, si hay banner vertical, queda alto.
+   Si algo fallara, el valor de reserva es el 16:9 de siempre.
+   ============================================================= */
+.hero {
+  aspect-ratio: var(--hero-ar, 1672 / 941);
+}
+@media (max-width: 720px) {
+  .hero {
+    aspect-ratio: var(--hero-ar, 1672 / 941);
+    /* Tope generoso: un banner vertical puede ocupar casi toda la
+       pantalla, pero siempre deja ver que abajo sigue el catálogo. */
+    max-height: calc(100svh - var(--header-h) - var(--topbar-h) - 64px);
+  }
+}

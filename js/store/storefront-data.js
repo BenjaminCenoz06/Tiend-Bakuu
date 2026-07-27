@@ -226,6 +226,32 @@ function precargarBanner(banner, corteMovil) {
   }
 }
 
+/**
+ * Ajusta el alto del hero a la forma real de la imagen visible.
+ *
+ * El navegador cambia solo entre la versión de escritorio y la de
+ * celular; cada vez que carga una, leemos sus medidas naturales y se
+ * las pasamos al CSS. Con una imagen vertical el banner queda alto
+ * (como en las tiendas de referencia) sin recortar nada.
+ */
+function ajustarFormaDelHero(pic) {
+  const hero = document.querySelector(".hero");
+  const img = pic && pic.querySelector("img");
+  if (!hero || !img) return;
+
+  const aplicar = () => {
+    if (img.naturalWidth && img.naturalHeight) {
+      hero.style.setProperty("--hero-ar", `${img.naturalWidth} / ${img.naturalHeight}`);
+    }
+  };
+
+  if (img.complete) aplicar();
+  // `load` vuelve a dispararse cuando el navegador cambia de fuente
+  // (por ejemplo al girar el teléfono o cruzar los 768 px).
+  img.addEventListener("load", aplicar);
+  addEventListener("resize", aplicar, { passive: true });
+}
+
 export function applyHeroBanners(banners) {
   const withImg = (banners || []).filter(b => b.imagen_url);
   const bg = document.querySelector(".hero-bg");
@@ -272,6 +298,11 @@ export function applyHeroBanners(banners) {
     bg.insertBefore(pic, tint || null);
     return pic;
   });
+
+  // El alto del hero sigue la forma REAL de la imagen que el navegador
+  // eligió: horizontal en escritorio, alta y vertical en celular. Así el
+  // banner nunca se recorta ni queda como una franja fina.
+  ajustarFormaDelHero(slides[0]);
 
   if (slides.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     let idx = 0;
