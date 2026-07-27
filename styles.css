@@ -3904,3 +3904,97 @@ html.no-js .section-head.reveal > *,
   .review:hover, .local-card:hover, .card-btn:hover { transform: none; }
 }
 
+
+/* =============================================================
+   22. IDENTIDAD POR CATEGORÍA + AIRE
+   Casi ningún producto de la planilla trae foto, así que la grilla
+   mostraba 299 siluetas negras idénticas. Acá cada categoría recibe
+   su propia paleta y un lienzo apenas tintado: la grilla se vuelve
+   variada e intencional sin agregar una sola imagen.
+   ============================================================= */
+
+/* Paleta base de la silueta (antes quedaba en negro por falta de valor) */
+.card-art {
+  --g1: #C4BEB4;
+  --g2: #ADA69A;
+  --g3: #D8D3CA;
+  display: grid;
+  place-items: center;
+  width: 100%; height: 100%;
+  padding: 9%;                     /* más aire alrededor de la prenda */
+}
+.card-art .art { width: 100%; height: 100%; }
+
+/* Un tono por categoría — apagados y cálidos, para no perder lo minimalista */
+.card[data-cat="remeras"]     .card-art { --g1:#C9C3B8; --g2:#B2AB9E; --g3:#DED9D0; }
+.card[data-cat="pantalones"]  .card-art { --g1:#A6AEBC; --g2:#8D95A4; --g3:#C3C9D4; }
+.card[data-cat="buzos"]       .card-art { --g1:#CBBFA9; --g2:#B3A68F; --g3:#DFD6C6; }
+.card[data-cat="camisas"]     .card-art { --g1:#BFCBD1; --g2:#A5B2B9; --g3:#D8E0E4; }
+.card[data-cat="camperas"]    .card-art { --g1:#9FA8B2; --g2:#87909B; --g3:#BDC4CB; }
+.card[data-cat="sweatter"]    .card-art { --g1:#CDBBA6; --g2:#B5A28C; --g3:#E1D4C4; }
+.card[data-cat="mallas"]      .card-art { --g1:#A9C6C9; --g2:#8FAFB3; --g3:#C9DDDF; }
+.card[data-cat="gorras"]      .card-art { --g1:#B9BCA4; --g2:#A0A38B; --g3:#D3D5C3; }
+.card[data-cat="medias"]      .card-art { --g1:#C2BEC8; --g2:#A9A5B1; --g3:#DAD7DE; }
+.card[data-cat="boxer"]       .card-art { --g1:#CBBBBB; --g2:#B3A2A2; --g3:#DED2D2; }
+.card[data-cat="rin-morral"]  .card-art { --g1:#BFB6AC; --g2:#A69C91; --g3:#D6CFC7; }
+.card[data-cat="jeans"]       .card-art { --g1:#9FB0C4; --g2:#8697AB; --g3:#BFCCDB; }
+.card[data-cat="shorts"]      .card-art { --g1:#C6C0B0; --g2:#AEA898; --g3:#DCD7CA; }
+.card[data-cat="accesorios"]  .card-art { --g1:#C3BDB5; --g2:#ABA49B; --g3:#D9D4CE; }
+
+/* Lienzo: apenas teñido, casi blanco, para que el conjunto respire */
+.card[data-cat="remeras"]     .card-media { background: #F7F5F1; }
+.card[data-cat="pantalones"]  .card-media { background: #F2F4F7; }
+.card[data-cat="buzos"]       .card-media { background: #F7F4EE; }
+.card[data-cat="camisas"]     .card-media { background: #F3F6F7; }
+.card[data-cat="camperas"]    .card-media { background: #F1F3F5; }
+.card[data-cat="sweatter"]    .card-media { background: #F8F4EF; }
+.card[data-cat="mallas"]      .card-media { background: #F0F6F6; }
+.card[data-cat="gorras"]      .card-media { background: #F5F6F0; }
+.card[data-cat="medias"]      .card-media { background: #F5F4F7; }
+.card[data-cat="boxer"]       .card-media { background: #F7F3F3; }
+.card[data-cat="rin-morral"]  .card-media { background: #F6F4F1; }
+
+/* ---- Etiquetas más finas ---- */
+.badge {
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: bakuBadge 0.5s var(--ease-out) both 0.25s;
+}
+@keyframes bakuBadge {
+  from { opacity: 0; transform: translateY(-6px) scale(0.9); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---- Más aire entre piezas ---- */
+.grid { gap: clamp(1.6rem, 3vw, 2.75rem) clamp(1.1rem, 2vw, 1.9rem); }
+.card-info { padding-top: 1.05rem; }
+
+/* ---- Carga: esqueleto en vez de un texto suelto ---- */
+.sheets-loading {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: clamp(1.6rem, 3vw, 2.75rem) clamp(1.1rem, 2vw, 1.9rem);
+  padding: 0 !important;
+}
+.sheets-loading p { display: none; }
+.sheets-loading::before,
+.sheets-loading::after {
+  content: "";
+  aspect-ratio: 3 / 4;
+  border-radius: var(--r-sm);
+  background: linear-gradient(100deg, #F4F2EF 30%, #FBFAF8 50%, #F4F2EF 70%);
+  background-size: 220% 100%;
+  animation: bakuShimmer 1.3s linear infinite;
+}
+@keyframes bakuShimmer { to { background-position: -220% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .badge { animation: none; }
+  .sheets-loading::before, .sheets-loading::after { animation: none; }
+}

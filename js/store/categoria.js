@@ -168,7 +168,7 @@ function card(p) {
 
   const price = anterior ? `<s>${money(anterior)}</s> ${money(precio)}` : money(precio);
 
-  return `<article class="card" data-product="${esc(p.id)}">
+  return `<article class="card" data-product="${esc(p.id)}" data-cat="${esc(p.category || "")}">
     <div class="card-media">
       <a class="card-link" href="producto.html?id=${esc(p.id)}" aria-label="${esc(p.name || p.nombre)}"></a>
       ${badge}${media}

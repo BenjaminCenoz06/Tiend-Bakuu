@@ -215,7 +215,7 @@ function card(p) {
     ? `<s>${money(p.oldPrice)}</s> ${money(p.price)}`
     : money(p.price);
 
-  return `<article class="card" data-product="${esc(p.id)}">
+  return `<article class="card" data-product="${esc(p.id)}" data-cat="${esc(p.category || "")}">
     <div class="card-media">
       <a class="card-link" href="producto.html?id=${esc(p.id)}" aria-label="${esc(p.name)}"></a>
       ${badge}
