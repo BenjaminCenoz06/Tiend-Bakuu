@@ -4133,3 +4133,23 @@ picture.hero-slide { display: block; }
     max-height: calc(100svh - var(--header-h) - var(--topbar-h) - 64px);
   }
 }
+
+/* =============================================================
+   28. BARRA DE ANUNCIOS MÁS BAJA Y SUAVE
+   Era dorado pleno (#eead20) de 34 px y competía con el logo.
+   Ahora es un velo del mismo dorado sobre el papel blanco, con la
+   tipografía en un tono profundo para que se siga leyendo bien.
+   ============================================================= */
+:root { --topbar-h: 28px; }
+@media (max-width: 720px) { :root { --topbar-h: 26px; } }
+
+.topbar {
+  background: rgba(232, 166, 59, 0.15);                          /* reserva */
+  background: color-mix(in srgb, var(--gold) 15%, transparent);  /* sigue al dorado del panel */
+  color: #7E5810;                                                /* contraste AA sobre el velo */
+  border-bottom: 1px solid rgba(232, 166, 59, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.topbar-track { font-size: 0.63rem; letter-spacing: 0.15em; gap: 2.1rem; }
+.topbar-track i { opacity: 0.35; }
