@@ -21,34 +21,29 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
     }
   } catch (_) {}
 
-  try {
-    const [settings, products, banners, categories] = await Promise.all([
-      fetchSettings().catch(() => null),
-      fetchProducts().catch(() => []),
-      fetchBanners().catch(() => []),
-      fetchCategories().catch(() => []),
-    ]);
-
-    if (settings) {
+  // Cada dato se aplica APENAS LLEGA. Antes esperaban todos juntos, así que
+  // el banner —una consulta mínima— quedaba retenido detrás del catálogo de
+  // casi 300 productos y recién aparecía varios segundos después.
+  fetchSettings()
+    .then(settings => {
+      if (!settings) return;
       applyTheme(settings);
       applyBusinessInfo(settings);
       applyContent(settings);
-    }
+    })
+    .catch(e => console.warn("[store-sync] settings", e));
 
-    if (banners && banners.length) {
-      applyHeroBanners(banners);
-    }
+  fetchBanners()
+    .then(banners => { if (banners && banners.length) applyHeroBanners(banners); })
+    .catch(e => console.warn("[store-sync] banners", e));
 
-    if (categories && categories.length) {
-      renderCategories(categories);
-    }
+  fetchCategories()
+    .then(categories => { if (categories && categories.length) renderCategories(categories); })
+    .catch(e => console.warn("[store-sync] categorias", e));
 
-    // Renderizar catálogo con los productos obtenidos en tiempo real
-    renderCatalog((products || []).map(toStoreProduct));
-  } catch (e) {
-    console.warn("[store-sync]", e);
-    renderCatalog([]);
-  }
+  fetchProducts()
+    .then(products => renderCatalog((products || []).map(toStoreProduct)))
+    .catch(e => { console.warn("[store-sync] productos", e); renderCatalog([]); });
 })();
 
 /* ---------- Contenido editable de la tienda (textos desde el panel) ----------

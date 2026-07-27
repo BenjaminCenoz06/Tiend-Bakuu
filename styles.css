@@ -4160,17 +4160,19 @@ picture.hero-slide { display: block; }
    a la vista (el clásico "Ken Burns"): se siente vivo sin marear.
    Solo aparece cuando hay más de un banner cargado en el panel.
    ============================================================= */
+/* Tiempos pensados para un cambio cada 2 s: el fundido ocupa menos de
+   un tercio del ciclo, así se percibe el pasaje sin movimiento continuo. */
 .hero-slide {
   opacity: 0;
-  transform: scale(1.05);
-  transition: opacity 1.15s var(--ease-out), transform 1.15s var(--ease-out);
+  transform: scale(1.03);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
   will-change: opacity, transform;
 }
 .hero-slide.is-active {
   opacity: 1;
-  /* El acercamiento corre durante toda la permanencia del banner */
+  /* El acercamiento termina justo antes del próximo cambio */
   transform: scale(1);
-  transition: opacity 1.15s var(--ease-out), transform 7s linear;
+  transition: opacity 0.6s var(--ease-out), transform 2.2s linear;
 }
 .hero-bg { overflow: hidden; }   /* el zoom no se escapa del marco */
 
