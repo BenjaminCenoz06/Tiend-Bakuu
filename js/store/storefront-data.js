@@ -304,14 +304,61 @@ export function applyHeroBanners(banners) {
   // banner nunca se recorta ni queda como una franja fina.
   ajustarFormaDelHero(slides[0]);
 
-  if (slides.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    let idx = 0;
-    setInterval(() => {
-      slides[idx].classList.remove("is-active");
-      idx = (idx + 1) % slides.length;
-      slides[idx].classList.add("is-active");
-    }, 5000);
+  if (slides.length > 1) iniciarCarrusel(bg, slides);
+}
+
+/**
+ * Pasaje entre banners: fundido cruzado con un acercamiento muy lento
+ * mientras la imagen está a la vista. Sin cortes ni saltos.
+ *
+ * El orden es el que se define en el panel (los banners llegan
+ * ordenados por `orden`). Con un solo banner esto ni se ejecuta.
+ */
+function iniciarCarrusel(bg, slides) {
+  const INTERVALO = 6000;
+  const quieto = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Puntitos para saber cuántos banners hay y poder saltar entre ellos
+  const puntos = document.createElement("div");
+  puntos.className = "hero-dots";
+  puntos.setAttribute("role", "tablist");
+  puntos.setAttribute("aria-label", "Banners");
+  slides.forEach((_, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "hero-dot" + (i === 0 ? " is-on" : "");
+    b.setAttribute("aria-label", `Banner ${i + 1}`);
+    b.addEventListener("click", () => mostrar(i, true));
+    puntos.appendChild(b);
+  });
+  bg.parentElement.appendChild(puntos);
+
+  let idx = 0;
+  let reloj = null;
+
+  function mostrar(nuevo, manual) {
+    if (nuevo === idx) return;
+    slides[idx].classList.remove("is-active");
+    idx = nuevo;
+    slides[idx].classList.add("is-active");
+    puntos.querySelectorAll(".hero-dot").forEach((d, i) => d.classList.toggle("is-on", i === idx));
+    // Cada banner puede tener su propia forma: el hero se adapta.
+    ajustarFormaDelHero(slides[idx]);
+    if (manual) programar();          // reinicia la cuenta tras un clic
   }
+
+  function programar() {
+    clearInterval(reloj);
+    if (quieto) return;               // sin movimiento: se queda en el primero
+    reloj = setInterval(() => mostrar((idx + 1) % slides.length), INTERVALO);
+  }
+
+  // No consumir batería ni "saltar" varios banners con la pestaña oculta
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) clearInterval(reloj); else programar();
+  });
+
+  programar();
 }
 
 /** Normaliza un producto de Google Sheets o Supabase al formato unificado de la tienda. */
