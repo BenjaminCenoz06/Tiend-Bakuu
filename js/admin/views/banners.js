@@ -3,7 +3,7 @@
 //  Banners del home: título, subtítulo, botón, link, imagen, orden.
 // =============================================================
 import { bannerRepo } from "../../repositories/banner.repo.js";
-import { StorageService } from "../../core/storage.service.js";
+import { createImageDrop } from "../ui/image-drop.js";
 import { openModal } from "../../core/ui/modal.js";
 import { confirmDialog } from "../../core/ui/confirm.js";
 import { toast } from "../../core/ui/toast.js";
@@ -54,13 +54,20 @@ export const bannersView = {
   },
 
   _row(b) {
-    const thumb = b.imagen_url
-      ? `<span class="thumb" style="width:80px;height:46px"><img src="${esc(b.imagen_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:7px" alt=""></span>`
-      : `<span class="thumb" style="width:80px;height:46px">${ICON.img}</span>`;
+    const mini = (url, w, h) => url
+      ? `<img src="${esc(url)}" style="width:${w}px;height:${h}px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" alt="">`
+      : `<span class="thumb" style="width:${w}px;height:${h}px">${ICON.img}</span>`;
+    // Aviso claro cuando falta la versión de celular (usa la de escritorio)
+    const avisoMovil = b.imagen_movil_url
+      ? `<span class="pill pill-on" style="font-size:.62rem">📱 propia</span>`
+      : `<span class="pill pill-off" style="font-size:.62rem">📱 usa la de escritorio</span>`;
     return `<tr data-id="${b.id}">
-      <td><div class="cell-prod">${thumb}<div class="cell-prod-info">
+      <td><div class="cell-prod" style="gap:.5rem">
+        ${mini(b.imagen_url, 74, 42)}
+        ${mini(b.imagen_movil_url, 26, 42)}
+        <div class="cell-prod-info">
         <div class="td-strong">${esc(b.titulo || "Sin título")}</div>
-        <div class="td-mute">${esc(b.subtitulo || "")}</div></div></div></td>
+        <div class="td-mute">${avisoMovil}</div></div></div></td>
       <td class="td-mute">${b.boton_texto ? esc(b.boton_texto) : "—"}</td>
       <td class="td-num">${b.orden}</td>
       <td><label class="switch"><input type="checkbox" data-toggle ${b.activo ? "checked" : ""}><span class="switch-track"></span></label></td>
@@ -91,18 +98,34 @@ export const bannersView = {
 
   _form(banner) {
     const editing = !!banner;
-    const st = { imagen_url: banner?.imagen_url || "" };
     const body = document.createElement("div");
     const nextOrden = editing ? banner.orden : (this._all.length ? Math.max(...this._all.map(b => b.orden)) + 1 : 0);
+
+    // Dos zonas de carga independientes, con la forma real de cada pantalla.
+    const dropDesktop = createImageDrop({
+      icono: "🖥️", titulo: "Banner Desktop",
+      recomendado: "1920 × 1080", relacion: "16:9", aspect: "16/9",
+      url: banner?.imagen_url || "", textoBoton: "Cambiar imagen Desktop",
+    });
+    const dropMobile = createImageDrop({
+      icono: "📱", titulo: "Banner Mobile",
+      recomendado: "1080 × 1920", relacion: "9:16", aspect: "9/16",
+      url: banner?.imagen_movil_url || "", textoBoton: "Cambiar imagen Mobile",
+    });
+
     body.innerHTML = `
       <form id="banner-form" class="form-grid">
-        <div class="field col-2"><label>Imagen del banner</label>
-          <div class="up-cell" data-preview style="max-width:100%;aspect-ratio:16/6;border-radius:12px">
-            ${st.imagen_url ? `<img src="${esc(st.imagen_url)}" alt="">` : `<div class="up-add" style="height:100%;border:0">${ICON.img}<span>Subir imagen</span></div>`}
-          </div>
-          <input type="file" accept="image/*" hidden data-file>
-          <button type="button" class="btn btn-ghost" data-upload style="margin-top:.5rem">${st.imagen_url ? "Cambiar imagen" : "Subir imagen"}</button>
-        </div>
+        <div class="col-2 banner-drops"></div>
+        <p class="field-hint col-2" style="margin-top:-.4rem">
+          Si no cargás la imagen de celular, la tienda usa la de escritorio.
+        </p>
+
+        <div class="field"><label for="b-alt-d">Texto alternativo · Desktop</label>
+          <input class="input" id="b-alt-d" name="alt_desktop" value="${esc(banner?.alt_desktop || "")}" placeholder="Qué se ve en la imagen">
+          <span class="field-hint">Ayuda al buscador y a quien no puede ver la imagen.</span></div>
+        <div class="field"><label for="b-alt-m">Texto alternativo · Mobile</label>
+          <input class="input" id="b-alt-m" name="alt_movil" value="${esc(banner?.alt_movil || "")}" placeholder="Igual que arriba si es la misma escena"></div>
+
         <div class="field col-2"><label for="b-titulo">Título</label>
           <input class="input" id="b-titulo" name="titulo" value="${esc(banner?.titulo || "")}" placeholder="Ej: Nueva colección"></div>
         <div class="field col-2"><label for="b-sub">Subtítulo</label>
@@ -119,23 +142,11 @@ export const bannersView = {
       </form>`;
     const foot = document.createElement("div");
     foot.innerHTML = `<button class="btn btn-ghost" data-cancel>Cancelar</button><button class="btn" data-save>${editing ? "Guardar" : "Crear banner"}</button>`;
-    const modal = openModal({ title: editing ? "Editar banner" : "Nuevo banner", body, footer: foot });
+    const modal = openModal({ title: editing ? "Editar banner" : "Nuevo banner", body, size: "lg", footer: foot });
 
-    const fileInput = body.querySelector("[data-file]");
-    const preview = body.querySelector("[data-preview]");
-    body.querySelector("[data-upload]").addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files[0]; fileInput.value = "";
-      if (!file) return;
-      preview.classList.add("is-uploading"); preview.innerHTML = "";
-      try {
-        const { url } = await StorageService.upload("banners", file);
-        st.imagen_url = url;
-        preview.classList.remove("is-uploading");
-        preview.innerHTML = `<img src="${esc(url)}" alt="">`;
-        body.querySelector("[data-upload]").textContent = "Cambiar imagen";
-      } catch (err) { toast(err.message, "error"); preview.classList.remove("is-uploading"); }
-    });
+    // Montar las dos zonas de carga
+    const zonas = body.querySelector(".banner-drops");
+    zonas.append(dropDesktop.el, dropMobile.el);
 
     foot.querySelector("[data-cancel]").addEventListener("click", () => modal.close(null));
     foot.querySelector("[data-save]").addEventListener("click", async () => {
@@ -146,7 +157,10 @@ export const bannersView = {
         subtitulo: fd.get("subtitulo").trim() || null,
         boton_texto: fd.get("boton_texto").trim() || null,
         link: fd.get("link").trim() || null,
-        imagen_url: st.imagen_url || null,
+        imagen_url: dropDesktop.getUrl() || null,
+        imagen_movil_url: dropMobile.getUrl() || null,
+        alt_desktop: fd.get("alt_desktop").trim() || null,
+        alt_movil: fd.get("alt_movil").trim() || null,
         orden: Number(fd.get("orden")) || 0,
         activo: form.querySelector('[name="activo"]').checked,
       };

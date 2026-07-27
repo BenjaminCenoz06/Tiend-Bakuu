@@ -840,3 +840,78 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* =============================================================
+   ZONA DE CARGA DE IMAGEN (banners escritorio / celular)
+   ============================================================= */
+.banner-drops {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.1rem;
+  align-items: start;
+}
+@media (max-width: 640px) { .banner-drops { grid-template-columns: 1fr; } }
+
+.imgdrop {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.9rem;
+  background: var(--surface-2);
+}
+.imgdrop-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem; }
+.imgdrop-ico { font-size: 1.15rem; line-height: 1; }
+.imgdrop-titles { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.imgdrop-titles strong { font-size: 0.9rem; font-weight: 600; }
+.imgdrop-titles span { font-size: 0.72rem; color: var(--text-mute); }
+
+.imgdrop-zone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  border: 1.5px dashed var(--border-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-2);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.imgdrop-zone:hover,
+.imgdrop-zone:focus-visible { border-color: var(--gold); background: var(--gold-dim); }
+.imgdrop-zone.is-over { border-color: var(--gold); background: var(--gold-dim); border-style: solid; }
+.imgdrop-zone.is-busy { pointer-events: none; opacity: 0.7; }
+.imgdrop-zone img { width: 100%; height: 100%; object-fit: cover; }
+
+.imgdrop-empty {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-mute);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.imgdrop-plus { font-size: 1.5rem; color: var(--gold); line-height: 1; }
+
+.imgdrop-spin {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+.imgdrop-spin::after {
+  content: ""; width: 26px; height: 26px;
+  border: 2px solid var(--gold); border-top-color: transparent;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+
+.imgdrop-meta {
+  display: flex; justify-content: space-between; gap: 0.6rem;
+  margin-top: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-mute);
+}
+.imgdrop-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.imgdrop-actions .btn-sm { min-height: 36px; padding: 0 0.75rem; font-size: 0.78rem; }
+.imgdrop-clear:hover { color: var(--danger); }

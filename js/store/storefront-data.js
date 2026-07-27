@@ -196,6 +196,36 @@ function hexToRgba(hex, a) {
 }
 
 /** Convierte los banners del panel en un slideshow de fondo del hero. */
+/** Tipo MIME según la extensión, para que el navegador descarte formatos que no soporta. */
+function tipoMime(url) {
+  const ext = String(url).split("?")[0].split(".").pop().toLowerCase();
+  return { avif: "image/avif", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" }[ext] || "";
+}
+
+/**
+ * Precarga SOLO la imagen que le toca a este dispositivo (el atributo
+ * `media` hace que el navegador ignore la otra).
+ */
+function precargarBanner(banner, corteMovil) {
+  const agregar = (href, media) => {
+    if (!href) return;
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = href;
+    if (media) link.media = media;
+    const tipo = tipoMime(href);
+    if (tipo) link.type = tipo;
+    document.head.appendChild(link);
+  };
+  if (banner.imagen_movil_url) {
+    agregar(banner.imagen_movil_url, corteMovil);
+    agregar(banner.imagen_url, "(min-width: 769px)");
+  } else {
+    agregar(banner.imagen_url);
+  }
+}
+
 export function applyHeroBanners(banners) {
   const withImg = (banners || []).filter(b => b.imagen_url);
   const bg = document.querySelector(".hero-bg");
@@ -206,12 +236,41 @@ export function applyHeroBanners(banners) {
   if (oldImg) oldImg.remove();
   bg.querySelectorAll(".hero-slide").forEach(s => s.remove());
 
+  const CORTE_MOVIL = "(max-width: 768px)";
+
   const slides = withImg.map((b, i) => {
-    const d = document.createElement("div");
-    d.className = "hero-slide" + (i === 0 ? " is-active" : "");
-    d.style.backgroundImage = `url("${b.imagen_url}")`;
-    bg.insertBefore(d, tint || null);
-    return d;
+    // <picture> deja que el navegador elija: en celular baja SOLO la imagen
+    // vertical y en escritorio SOLO la horizontal (nunca las dos).
+    const pic = document.createElement("picture");
+    pic.className = "hero-slide" + (i === 0 ? " is-active" : "");
+
+    // Sin imagen de celular, el <source> se omite y queda la de escritorio:
+    // así los banners viejos siguen funcionando sin tocar nada.
+    if (b.imagen_movil_url) {
+      const source = document.createElement("source");
+      source.media = CORTE_MOVIL;
+      source.srcset = b.imagen_movil_url;
+      const tipo = tipoMime(b.imagen_movil_url);
+      if (tipo) source.type = tipo;
+      pic.appendChild(source);
+    }
+
+    const img = document.createElement("img");
+    img.src = b.imagen_url;
+    img.alt = b.alt_desktop || b.titulo || "";
+    // El primer banner es lo primero que se ve: se prioriza su descarga.
+    if (i === 0) {
+      img.loading = "eager";
+      img.setAttribute("fetchpriority", "high");
+      precargarBanner(b, CORTE_MOVIL);
+    } else {
+      img.loading = "lazy";
+    }
+    img.decoding = "async";
+    pic.appendChild(img);
+
+    bg.insertBefore(pic, tint || null);
+    return pic;
   });
 
   if (slides.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
