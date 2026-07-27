@@ -320,7 +320,7 @@ export function applyHeroBanners(banners) {
  * ordenados por `orden`). Con un solo banner esto ni se ejecuta.
  */
 function iniciarCarrusel(bg, slides) {
-  const INTERVALO = 2000;   // cambio cada 2 segundos
+  const INTERVALO = 3000;   // cambio cada 3 segundos
 
   // Indicadores solo informativos: muestran cuántos banners hay, pero no
   // se pueden tocar — el pasaje es siempre automático.
