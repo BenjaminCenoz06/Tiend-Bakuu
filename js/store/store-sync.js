@@ -133,9 +133,7 @@ function renderCategories(cats) {
     return `<a class="cat reveal is-visible" href="categoria.html?slug=${esc(c.slug)}">
       ${media}
       <div class="cat-meta">
-        <span class="cat-num">${String(i + 1).padStart(2, "0")}</span>
         <span class="cat-name">${esc(c.nombre)}</span>
-        <span class="cat-arrow" aria-hidden="true">→</span>
       </div>
     </a>`;
   }).join("");

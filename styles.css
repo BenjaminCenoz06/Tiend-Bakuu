@@ -4424,3 +4424,79 @@ picture.hero-slide { display: block; }
 /* Mosaicos de categoría: sin la hairline, al tono de las tarjetas */
 .cat { border: 0; border-radius: 0; }
 .cat:hover { box-shadow: none; }
+
+/* =============================================================
+   34. CATEGORÍAS: MOSAICO EDITORIAL
+   La foto ocupa toda la baldosa y el nombre va encima, abajo a la
+   izquierda, sobre un velo oscuro. Sin número, sin flecha y sin
+   barra de vidrio: la imagen manda.
+   ============================================================= */
+.cats-grid { gap: 8px; }
+
+.cat {
+  aspect-ratio: 6 / 5;          /* apaisada, como la referencia */
+  max-height: none;
+  place-items: stretch;
+  background: var(--bg-2);
+}
+.cat:hover { transform: none; box-shadow: none; }
+
+/* La foto llena la baldosa; el arte SVG sigue centrado si no hay foto */
+.cat-photo {
+  transition: transform 0.9s var(--ease-out);
+}
+.cat:hover .cat-photo { transform: scale(1.04); }
+.cat-art {
+  place-self: center;
+  width: 52%;
+}
+.cat:hover .cat-art { transform: scale(1.05); }
+
+/* Velo inferior: garantiza que el nombre se lea sobre cualquier foto */
+.cat::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Sin foto cargada, la baldosa es el lienzo claro con el arte SVG:
+   ahí el velo sobra y el nombre va en tinta. Si el navegador no
+   entiende :has(), queda el velo, que también se lee bien. */
+.cat:not(:has(.cat-photo))::after { content: none; }
+.cat:not(:has(.cat-photo)) .cat-name { color: var(--ink); }
+
+.cat-meta {
+  z-index: 2;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 1.1rem 1.25rem;
+  border-top: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.cat:hover .cat-meta { transform: none; }
+
+.cat-name {
+  color: #FFFFFF;
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.cat:hover .cat-name { letter-spacing: 0.04em; }
+
+/* Red de seguridad por si un JS cacheado todavía pinta número y flecha */
+.cat-num, .cat-arrow { display: none; }
+
+/* Celular: de a dos. Una sola columna con once categorías eran
+   tres pantallas y media de scroll. */
+@media (max-width: 719.98px) {
+  .cats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .cat-meta { padding: 0.8rem 0.85rem; }
+  .cat-name { font-size: 0.82rem; letter-spacing: 0.03em; }
+}
