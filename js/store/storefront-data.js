@@ -365,6 +365,56 @@ function iniciarCarrusel(bg, slides) {
 }
 
 /** Normaliza un producto de Google Sheets o Supabase al formato unificado de la tienda. */
+/* =============================================================
+   Condiciones de pago que se muestran en cada producto.
+   Los valores por defecto coinciden con la franja de beneficios;
+   se pueden cambiar desde el panel (Configuración → Contenido).
+   ============================================================= */
+export const PAGOS = { descuento: 15, cuotas: 3, envioDesde: 150000 };
+
+/** Toma los valores del panel (si están cargados) y valida cada uno. */
+export function configurarPagos(settings) {
+  const c = (settings && settings.contenido) || {};
+  const num = (v, porDefecto) => {
+    const n = parseFloat(String(v == null ? "" : v).replace(",", "."));
+    return isFinite(n) && n >= 0 ? n : porDefecto;
+  };
+  PAGOS.descuento  = num(c.pago_descuento_pct, 15);
+  PAGOS.cuotas     = Math.max(1, Math.round(num(c.pago_cuotas, 3)));
+  PAGOS.envioDesde = num(c.envio_gratis_desde, 150000);
+}
+
+const pesos = (n) => "$" + Math.round(Number(n) || 0).toLocaleString("es-AR");
+
+/**
+ * Bloque de precios de la tarjeta: precio por transferencia (con el
+ * descuento aplicado) y el valor de cada cuota.
+ * Devuelve "" si el producto no tiene precio, para no mostrar $0.
+ */
+export function bloquePagos(precio) {
+  const p = Number(precio) || 0;
+  if (p <= 0) return "";
+  const partes = [];
+
+  if (PAGOS.descuento > 0) {
+    const conDescuento = p * (1 - PAGOS.descuento / 100);
+    partes.push(
+      `<p class="card-pay"><strong>${pesos(conDescuento)}</strong> Transferencia o efectivo</p>`
+    );
+  }
+  if (PAGOS.cuotas > 1) {
+    partes.push(
+      `<p class="card-inst"><strong>${PAGOS.cuotas} x ${pesos(p / PAGOS.cuotas)}</strong> sin interés</p>`
+    );
+  }
+  return partes.join("");
+}
+
+/** ¿Este producto llega al mínimo para envío sin cargo? */
+export function tieneEnvioGratis(precio) {
+  return PAGOS.envioDesde > 0 && (Number(precio) || 0) >= PAGOS.envioDesde;
+}
+
 export function toStoreProduct(p) {
   if (!p) return null;
 

@@ -4,7 +4,7 @@
 //  obtenidos desde Supabase, con filtros (precio, talle, color,
 //  disponibilidad) aplicados en cliente sobre la lista ya cargada.
 // =============================================================
-import { fetchSettings, fetchProducts, toStoreProduct, applyTheme, getCachedProducts, revealOnScroll } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, toStoreProduct, applyTheme, getCachedProducts, revealOnScroll, configurarPagos, bloquePagos, tieneEnvioGratis } from "./storefront-data.js";
 import { getColorHex } from "../core/colorDictionary.js";
 import "./shop.js"; // activa el carrito + botón del header
 
@@ -25,7 +25,7 @@ let baseProducts = []; // productos de la categoría actual, sin filtrar
   const params = new URLSearchParams(location.search);
   const slugParam = params.get("slug");
 
-  fetchSettings().then(s => { if (s) applyThemeAndInfo(s); }).catch(() => {});
+  fetchSettings().then(s => { if (s) { configurarPagos(s); applyThemeAndInfo(s); paint(); } }).catch(() => {});
 
   const grid = document.querySelector("[data-cat-grid]");
   const setText = (sel, v) => { const el = document.querySelector(sel); if (el) el.textContent = v; };
@@ -162,6 +162,9 @@ function card(p) {
     badge = `<span class="badge ${isSale ? "badge-sale" : "badge-new"}">${esc(p.badge)}</span>`;
   }
 
+  const envio = (p.stock !== 0 && p.activo !== false && tieneEnvioGratis(precio))
+    ? '<span class="badge-envio">Envío gratis</span>' : "";
+
   const media = p.image
     ? `<img class="card-photo" src="${esc(p.image)}" alt="${esc(p.name || p.nombre)}" loading="lazy">`
     : `<div class="card-art"><svg class="art" viewBox="0 0 400 500"><use href="#${esc(artId)}"/></svg></div>`;
@@ -171,11 +174,12 @@ function card(p) {
   return `<article class="card" data-product="${esc(p.id)}" data-cat="${esc(p.category || "")}">
     <div class="card-media">
       <a class="card-link" href="producto.html?id=${esc(p.id)}" aria-label="${esc(p.name || p.nombre)}"></a>
-      ${badge}${media}
+      ${badge}${envio}${media}
       <div class="card-actions"><a class="card-btn card-btn-dark" href="producto.html?id=${esc(p.id)}" style="text-decoration:none">Ver producto</a></div>
     </div>
     <div class="card-info">
       <div class="card-row"><h3 class="card-name"><a href="producto.html?id=${esc(p.id)}">${esc(p.name || p.nombre)}</a></h3><p class="card-price">${price}</p></div>
+      ${bloquePagos(precio)}
       <p class="card-color">${esc(p.categoryName || "")}</p>
       ${colorDots(p.colors)}
     </div>

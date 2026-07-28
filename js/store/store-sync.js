@@ -6,7 +6,7 @@
 //  Es tolerante a fallos: si Supabase no responde, la tienda queda
 //  con su catálogo/branding de base (nunca se rompe).
 // =============================================================
-import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts, revealOnScroll } from "./storefront-data.js";
+import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts, revealOnScroll, configurarPagos, bloquePagos, tieneEnvioGratis } from "./storefront-data.js";
 import { getColorHex } from "../core/colorDictionary.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -53,6 +53,11 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
    Si una clave está vacía, se conserva el texto original (nunca se rompe). */
 function applyContent(s) {
   const c = s.contenido || {};
+
+  // Condiciones de pago de las tarjetas. Si el catálogo ya se pintó con
+  // los valores por defecto, se vuelve a pintar con los del panel.
+  configurarPagos(s);
+  if (ultimosProductos.length) renderCatalog(ultimosProductos);
 
   // Cantidad de productos en la portada (configurable; por defecto 12).
   const n = parseInt(c.home_productos, 10);
@@ -140,9 +145,14 @@ function renderCategories(cats) {
 /** Cuántos productos se muestran en la portada (configurable desde el panel). */
 let homeLimit = 12;
 
+/** Último catálogo pintado, para poder repintarlo si llega la configuración. */
+let ultimosProductos = [];
+
 function renderCatalog(items) {
   const grid = document.querySelector("[data-grid]");
   if (!grid) return;
+
+  if (items && items.length) ultimosProductos = items;
 
   // Exponer SIEMPRE el catálogo completo al storefront (buscador, carrito, quickview),
   // aunque en la portada solo se muestre un preview.
@@ -198,6 +208,9 @@ function card(p) {
     const isSale = p.badge.includes("%") || p.badge.toLowerCase() === "oferta";
     badge = `<span class="badge ${isSale ? "badge-sale" : "badge-new"}">${esc(p.badge)}</span>`;
   }
+  // Aviso de envío sin cargo para los que superan el mínimo
+  const envio = (p.stock !== 0 && p.activo !== false && tieneEnvioGratis(p.price))
+    ? '<span class="badge-envio">Envío gratis</span>' : "";
 
   // Media: foto si existe URL, o arte SVG correspondiente a la categoría
   const artId = p.art || "g-tee";
@@ -213,7 +226,7 @@ function card(p) {
   return `<article class="card" data-product="${esc(p.id)}" data-cat="${esc(p.category || "")}">
     <div class="card-media">
       <a class="card-link" href="producto.html?id=${esc(p.id)}" aria-label="${esc(p.name)}"></a>
-      ${badge}
+      ${badge}${envio}
       ${media}
       <div class="card-actions">
         <a class="card-btn card-btn-dark" href="producto.html?id=${esc(p.id)}" style="text-decoration:none">Ver producto</a>
@@ -221,6 +234,7 @@ function card(p) {
     </div>
     <div class="card-info">
       <div class="card-row"><h3 class="card-name"><a href="producto.html?id=${esc(p.id)}">${esc(p.name)}</a></h3><p class="card-price">${price}</p></div>
+      ${bloquePagos(p.price)}
       <p class="card-color">${esc(p.categoryName || p.color || "")}</p>
       ${colorDots(p.colors)}
     </div>

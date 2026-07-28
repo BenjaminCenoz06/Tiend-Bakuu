@@ -209,6 +209,17 @@ export const configuracionView = {
             <div class="field"><label for="cn-p3s">3 · Detalle</label>
               <input class="input" id="cn-p3s" name="perk3_sub" value="${esc(cn.perk3_sub || "")}" placeholder="+150K"></div>
 
+            <div class="form-section-title">Precios que se muestran en cada producto</div>
+            <div class="field"><label for="cn-pd">Descuento por transferencia (%)</label>
+              <input class="input" id="cn-pd" name="pago_descuento_pct" type="number" min="0" max="90" step="1" value="${esc(cn.pago_descuento_pct || "")}" placeholder="15">
+              <span class="field-hint">Se muestra el precio ya con el descuento. Poné 0 para ocultarlo.</span></div>
+            <div class="field"><label for="cn-pc">Cuotas sin interés</label>
+              <input class="input" id="cn-pc" name="pago_cuotas" type="number" min="1" max="24" step="1" value="${esc(cn.pago_cuotas || "")}" placeholder="3">
+              <span class="field-hint">Poné 1 para no mostrar cuotas.</span></div>
+            <div class="field col-2"><label for="cn-eg">Envío gratis desde ($)</label>
+              <input class="input" id="cn-eg" name="envio_gratis_desde" type="number" min="0" step="1000" value="${esc(cn.envio_gratis_desde || "")}" placeholder="150000">
+              <span class="field-hint">Los productos que superen ese monto muestran el cartel “Envío gratis”. Poné 0 para desactivarlo.</span></div>
+
             <div class="form-section-title">Portada</div>
             <div class="field"><label for="cn-hp">Productos en la portada</label>
               <input class="input" id="cn-hp" name="home_productos" type="number" min="1" max="60" value="${esc(cn.home_productos || "")}" placeholder="12">
@@ -369,6 +380,9 @@ export const configuracionView = {
         perk1_titulo: g("perk1_titulo"), perk1_sub: g("perk1_sub"),
         perk2_titulo: g("perk2_titulo"), perk2_sub: g("perk2_sub"),
         perk3_titulo: g("perk3_titulo"), perk3_sub: g("perk3_sub"),
+        pago_descuento_pct: g("pago_descuento_pct"),
+        pago_cuotas: g("pago_cuotas"),
+        envio_gratis_desde: g("envio_gratis_desde"),
         home_productos: g("home_productos"),
         menu_coleccion: g("menu_coleccion"),
         menu_local: g("menu_local"),
