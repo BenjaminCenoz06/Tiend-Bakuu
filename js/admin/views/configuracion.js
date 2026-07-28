@@ -195,6 +195,20 @@ export const configuracionView = {
             <div class="field col-2"><label for="cn-rv3a">Reseña 3 — autor</label>
               <input class="input" id="cn-rv3a" name="review3_autor" value="${esc(cn.review3_autor || "")}"></div>
 
+            <div class="form-section-title">Franja de beneficios (debajo del banner)</div>
+            <div class="field"><label for="cn-p1t">1 · Título</label>
+              <input class="input" id="cn-p1t" name="perk1_titulo" value="${esc(cn.perk1_titulo || "")}" placeholder="Efectivo y transferencia"></div>
+            <div class="field"><label for="cn-p1s">1 · Detalle</label>
+              <input class="input" id="cn-p1s" name="perk1_sub" value="${esc(cn.perk1_sub || "")}" placeholder="15% de descuento"></div>
+            <div class="field"><label for="cn-p2t">2 · Título</label>
+              <input class="input" id="cn-p2t" name="perk2_titulo" value="${esc(cn.perk2_titulo || "")}" placeholder="3 cuotas sin interés"></div>
+            <div class="field"><label for="cn-p2s">2 · Detalle</label>
+              <input class="input" id="cn-p2s" name="perk2_sub" value="${esc(cn.perk2_sub || "")}" placeholder="En toda la tienda"></div>
+            <div class="field"><label for="cn-p3t">3 · Título</label>
+              <input class="input" id="cn-p3t" name="perk3_titulo" value="${esc(cn.perk3_titulo || "")}" placeholder="Envíos gratis"></div>
+            <div class="field"><label for="cn-p3s">3 · Detalle</label>
+              <input class="input" id="cn-p3s" name="perk3_sub" value="${esc(cn.perk3_sub || "")}" placeholder="+150K"></div>
+
             <div class="form-section-title">Portada</div>
             <div class="field"><label for="cn-hp">Productos en la portada</label>
               <input class="input" id="cn-hp" name="home_productos" type="number" min="1" max="60" value="${esc(cn.home_productos || "")}" placeholder="12">
@@ -352,6 +366,9 @@ export const configuracionView = {
         review2_autor: g("review2_autor"),
         review3_texto: g("review3_texto"),
         review3_autor: g("review3_autor"),
+        perk1_titulo: g("perk1_titulo"), perk1_sub: g("perk1_sub"),
+        perk2_titulo: g("perk2_titulo"), perk2_sub: g("perk2_sub"),
+        perk3_titulo: g("perk3_titulo"), perk3_sub: g("perk3_sub"),
         home_productos: g("home_productos"),
         menu_coleccion: g("menu_coleccion"),
         menu_local: g("menu_local"),
