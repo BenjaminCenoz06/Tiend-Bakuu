@@ -3557,17 +3557,14 @@ body { background: var(--bg); color: var(--ink); }
 .btn-line { border-color: var(--ink); color: var(--ink); }
 .btn-line:hover { background: var(--ink); color: #FFFFFF; }
 
-/* ---- Tarjetas: definidas con una hairline sobre el blanco ---- */
+/* ---- Tarjetas: la foto sobre el papel, sin recuadro ni hairline ---- */
 .card-media {
-  border: 1px solid var(--line-soft);
-  background:
-    radial-gradient(120% 90% at 50% 6%, #FFFFFF, transparent 62%),
-    var(--bg-2);
+  border: 0;
+  background: transparent;
 }
-.card:hover .card-media { box-shadow: var(--shadow-lift); }
-.card-fav { background: rgba(255, 255, 255, 0.92); box-shadow: var(--shadow-xs); }
-.card-btn { background: rgba(255, 255, 255, 0.94); color: var(--ink); }
-.card-btn:hover { background: #FFFFFF; }
+.card-fav { background: transparent; box-shadow: none; }
+.card-btn { background: transparent; color: var(--ink); }
+.card-btn:hover { background: transparent; }
 .card-btn-dark { background: var(--ink); color: #FFFFFF; }
 .card-btn-dark:hover { background: var(--ink-soft); }
 .cat { border: 1px solid var(--line-soft); }
@@ -3941,18 +3938,8 @@ html.no-js .section-head.reveal > *,
 .card[data-cat="shorts"]      .card-art { --g1:#C6C0B0; --g2:#AEA898; --g3:#DCD7CA; }
 .card[data-cat="accesorios"]  .card-art { --g1:#C3BDB5; --g2:#ABA49B; --g3:#D9D4CE; }
 
-/* Lienzo: apenas teñido, casi blanco, para que el conjunto respire */
-.card[data-cat="remeras"]     .card-media { background: #F7F5F1; }
-.card[data-cat="pantalones"]  .card-media { background: #F2F4F7; }
-.card[data-cat="buzos"]       .card-media { background: #F7F4EE; }
-.card[data-cat="camisas"]     .card-media { background: #F3F6F7; }
-.card[data-cat="camperas"]    .card-media { background: #F1F3F5; }
-.card[data-cat="sweatter"]    .card-media { background: #F8F4EF; }
-.card[data-cat="mallas"]      .card-media { background: #F0F6F6; }
-.card[data-cat="gorras"]      .card-media { background: #F5F6F0; }
-.card[data-cat="medias"]      .card-media { background: #F5F4F7; }
-.card[data-cat="boxer"]       .card-media { background: #F7F3F3; }
-.card[data-cat="rin-morral"]  .card-media { background: #F6F4F1; }
+/* El lienzo por categoría se quitó: la media va sin fondo, sobre el papel.
+   El tono de cada categoría vive sólo en el arte SVG (--g1/--g2/--g3). */
 
 /* ---- Etiquetas más finas ---- */
 .badge {
@@ -4316,3 +4303,92 @@ picture.hero-slide { display: block; }
   .card-pay, .card-inst { font-size: 0.68rem; }
   .badge-envio { font-size: 0.55rem; padding: 0.25rem 0.45rem; }
 }
+
+/* =============================================================
+   32. TARJETA MINIMALISTA — la foto sobre el papel, sin recuadro
+   El lienzo gris de la media dibujaba un rectángulo por producto:
+   se leían como líneas de separación. La imagen apoya directo
+   sobre el fondo y la grilla queda limpia.
+   ============================================================= */
+.card-media {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.card:hover .card-media { box-shadow: none; }
+
+/* Sin recorte: la prenda entera dentro del marco, sin bordes duros */
+.card-photo {
+  object-fit: contain;
+  border-radius: 0;
+  transition: transform var(--dur-mid, 0.5s) var(--ease-out);
+}
+.card:hover .card-photo,
+.card.is-touched .card-photo { transform: scale(1.03); }
+
+/* Acciones y favorito: sin pastillas blancas sobre el papel */
+.card-fav {
+  background: transparent;
+  backdrop-filter: none;
+}
+.card-btn {
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.card-btn:hover { background: transparent; text-decoration: underline; text-underline-offset: 4px; }
+.card-btn-dark, .card-btn-dark:hover { background: var(--ink); color: var(--bg); text-decoration: none; }
+/* Cuando la tarjeta trae una sola acción, ocupa el ancho completo */
+.card-actions > .card-btn:only-child { grid-column: 1 / -1; }
+
+/* Puntos de color: sin anillo blanco ni contorno */
+.color-dot {
+  border: 0;
+  outline: 0;
+  box-shadow: inset 0 0 0 1px var(--line-soft);
+}
+
+/* =============================================================
+   33. MISMO CRITERIO EN TODA LA TIENDA
+   Cualquier lugar donde se muestra un producto usaba el mismo
+   lienzo teñido: ficha, vista rápida, carrito, mega menú. Todos
+   pasan a apoyar la imagen sobre el papel.
+   ============================================================= */
+
+/* Ficha de producto: la imagen grande y sus miniaturas */
+.pdp-stage {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.pdp-photo { border-radius: 0; }
+.pdp-stage-fav { background: transparent; box-shadow: none; }
+
+.pdp-thumb {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  opacity: 0.45;
+  transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+}
+.pdp-thumb:hover { opacity: 0.8; }
+.pdp-thumb.is-active { opacity: 1; box-shadow: inset 0 -1px 0 var(--ink); }
+
+/* Vista rápida */
+.qv-media { background: transparent; }
+
+/* Carrito y panel lateral */
+.drawer-item-art { background: transparent; border-radius: 0; }
+
+/* Producto destacado del mega menú */
+.mega-feature {
+  background: transparent;
+  border-radius: 0;
+}
+.mega-feature:hover { box-shadow: none; transform: translateY(-2px); }
+
+/* Mosaicos de categoría: sin la hairline, al tono de las tarjetas */
+.cat { border: 0; border-radius: 0; }
+.cat:hover { box-shadow: none; }
