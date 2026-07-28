@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Inter:wght@300..600&family=JetBrains+Mono:wght@300..500&display=swap">
 
   <link rel="preload" as="image" href="assets/img/local-interior.jpg" fetchpriority="high">
-  <link rel="stylesheet" href="styles.css?v=20260748_v9">
+  <link rel="stylesheet" href="styles.css?v=20260748_v10">
 </head>
 <body>
 
@@ -491,11 +491,46 @@
     </section>
 
     <!-- ========================================================
+         INSTAGRAM — carrusel de fotos, se cargan desde el panel
+         ======================================================== -->
+    <section class="ig" id="instagram" aria-label="Fotos de nuestro Instagram">
+      <header class="section-head reveal">
+        <p class="section-kicker">06 — Instagram</p>
+        <h2 data-cms="instagram_titulo">Así se ve BAKU</h2>
+      </header>
+
+      <div class="ig-viewport" data-ig>
+        <div class="ig-track" data-ig-track>
+          <a class="ig-slide" href="https://www.instagram.com/baku.cba/" target="_blank" rel="noopener">
+            <img class="ig-photo" src="assets/img/local-interior.jpg" alt="Interior del local de BAKU" loading="lazy">
+            <div class="ig-meta">
+              <span class="ig-title">Local Montevideo 32</span>
+              <span class="ig-link">Ver en Instagram</span>
+            </div>
+          </a>
+        </div>
+
+        <button class="ig-arrow ig-arrow-prev" data-ig-prev aria-label="Foto anterior">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="ig-arrow ig-arrow-next" data-ig-next aria-label="Foto siguiente">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+
+        <div class="ig-dots" data-ig-dots aria-hidden="true"></div>
+      </div>
+
+      <p class="ig-cta">
+        <a href="https://www.instagram.com/baku.cba/" target="_blank" rel="noopener" data-ig-perfil>Seguinos en @baku.cba</a>
+      </p>
+    </section>
+
+    <!-- ========================================================
          RESEÑAS — Google
          ======================================================== -->
     <section class="reviews" id="resenas">
       <header class="section-head reveal">
-        <p class="section-kicker">06 — Reseñas</p>
+        <p class="section-kicker">07 — Reseñas</p>
         <h2 data-cms="reviews_titulo">Lo que dicen de BAKU</h2>
       </header>
       <div class="reviews-inner">
@@ -527,7 +562,7 @@
          ======================================================== -->
     <section class="local" id="local">
       <header class="section-head reveal">
-        <p class="section-kicker">07 — El local</p>
+        <p class="section-kicker">08 — El local</p>
         <h2 data-cms="local_titulo">Vení a probártelo</h2>
         <p class="section-note" data-cms="local_nota">Nueva Córdoba, a metros de todo. Te esperamos con el mate listo.</p>
       </header>
@@ -572,7 +607,7 @@
          ======================================================== -->
     <section class="news" id="news">
       <div class="news-inner reveal">
-        <p class="section-kicker">08 — Newsletter</p>
+        <p class="section-kicker">09 — Newsletter</p>
         <h2 class="news-title" data-cms="news_titulo">Enterate <em>antes</em> que el resto.</h2>
         <p class="news-sub" data-cms="news_sub">Los drops y reposiciones se anuncian primero por mail y en @baku.cba. Sin spam: solo lo que llega al local.</p>
         <form class="news-form" data-news-form novalidate>
@@ -1020,7 +1055,7 @@
   <script defer src="lib/manifest.js?v=20260723_v5"></script>
   <script defer src="main.js?v=20260723_v5"></script>
   <!-- Sincronización con el panel (colores, datos y catálogo desde Supabase) -->
-  <script type="module" src="js/store/store-sync.js?v=20260748_v9"></script>
+  <script type="module" src="js/store/store-sync.js?v=20260748_v10"></script>
   <script type="module" src="js/store/shop.js?v=20260723_v5"></script>
   <script type="module" src="js/store/account.js?v=20260724"></script>
 

@@ -8,6 +8,7 @@
 // =============================================================
 import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts, revealOnScroll, configurarPagos, bloquePagos, tieneEnvioGratis } from "./storefront-data.js";
 import { getColorHex } from "../core/colorDictionary.js";
+import { applyInstagram } from "./instagram.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -30,6 +31,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "
       applyTheme(settings);
       applyBusinessInfo(settings);
       applyContent(settings);
+      applyInstagram(settings);
     })
     .catch(e => console.warn("[store-sync] settings", e));
 

@@ -9,6 +9,7 @@ import { dashboardView } from "./views/dashboard.js";
 import { productosView } from "./views/productos.js";
 import { categoriasView } from "./views/categorias.js";
 import { bannersView } from "./views/banners.js";
+import { instagramView } from "./views/instagram.js";
 import { pedidosView } from "./views/pedidos.js";
 import { clientesView } from "./views/clientes.js";
 import { reportesView } from "./views/reportes.js";
@@ -41,6 +42,7 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
     "productos":     productosView,
     "categorias":    categoriasView,
     "banners":       bannersView,
+    "instagram":     instagramView,
     "pedidos":       pedidosView,
     "clientes":      clientesView,
     "reportes":      reportesView,

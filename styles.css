@@ -4500,3 +4500,162 @@ picture.hero-slide { display: block; }
   .cat-meta { padding: 0.8rem 0.85rem; }
   .cat-name { font-size: 0.82rem; letter-spacing: 0.03em; }
 }
+
+/* =============================================================
+   35. INSTAGRAM — carrusel a pantalla completa
+   Una foto por vez, de borde a borde, con el epígrafe abajo a la
+   izquierda y puntos al pie. Cada foto abre el Instagram de BAKU.
+   Las fotos se cargan desde el panel (Contenido → Instagram).
+   ============================================================= */
+.ig { padding-top: var(--section-gap); }
+
+.ig-viewport {
+  position: relative;
+  margin-top: 1.6rem;
+  background: var(--bg-2);
+}
+
+/* Carril con scroll-snap: funciona con dedo, rueda y teclado,
+   y las flechas sólo empujan el scroll. */
+.ig-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.ig-track::-webkit-scrollbar { display: none; }
+
+.ig-slide {
+  position: relative;
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  aspect-ratio: 21 / 9;
+  max-height: 78svh;
+  overflow: hidden;
+  display: block;
+  color: #FFFFFF;
+  text-decoration: none;
+}
+.ig-photo {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 1.1s var(--ease-out);
+}
+.ig-slide:hover .ig-photo { transform: scale(1.03); }
+
+/* Velo inferior: el epígrafe se lee sobre cualquier foto */
+.ig-slide::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 42%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.66), transparent);
+  pointer-events: none;
+}
+
+.ig-meta {
+  position: absolute;
+  left: clamp(1.1rem, 3vw, 2.6rem);
+  bottom: clamp(2.6rem, 5vw, 3.4rem);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ig-title {
+  font-family: var(--display);
+  font-stretch: 112%;
+  font-weight: 700;
+  font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ig-link {
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  opacity: 0.92;
+}
+.ig-slide:hover .ig-link { opacity: 1; }
+
+/* Flechas: discretas, aparecen al pasar el mouse */
+.ig-arrow {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 3;
+  width: 44px; height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(20, 18, 12, 0.42);
+  color: #FFFFFF;
+  opacity: 0;
+  transition: opacity 0.3s var(--ease-out), background 0.3s var(--ease-out);
+}
+.ig-arrow svg { width: 20px; height: 20px; }
+.ig-arrow-prev { left: clamp(0.6rem, 1.6vw, 1.4rem); }
+.ig-arrow-next { right: clamp(0.6rem, 1.6vw, 1.4rem); }
+.ig-viewport:hover .ig-arrow,
+.ig-arrow:focus-visible { opacity: 1; }
+.ig-arrow:hover { background: rgba(20, 18, 12, 0.7); }
+@supports (backdrop-filter: blur(6px)) {
+  .ig-arrow { backdrop-filter: blur(6px); }
+}
+
+/* Puntos: mismo lenguaje que los del banner principal */
+.ig-dots {
+  position: absolute;
+  left: 50%; bottom: clamp(0.8rem, 2vh, 1.3rem);
+  translate: -50% 0;
+  z-index: 3;
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.38rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(20, 18, 12, 0.26);
+}
+@supports (backdrop-filter: blur(8px)) {
+  .ig-dots { backdrop-filter: blur(8px); }
+}
+.ig-dot {
+  display: block;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  transition: width 0.35s var(--ease-out), background 0.35s var(--ease-out);
+}
+.ig-dot.is-on { width: 20px; background: var(--gold); }
+
+/* Con una sola foto no hay nada que recorrer */
+.ig-viewport.is-single .ig-arrow,
+.ig-viewport.is-single .ig-dots { display: none; }
+
+.ig-cta {
+  margin: 1.1rem auto 0;
+  max-width: var(--max);
+  padding: 0 var(--gutter);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.ig-cta a { text-decoration: none; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.ig-cta a:hover { border-bottom-color: var(--ink); }
+
+/* Celular: la foto vertical luce mucho más que una franja apaisada */
+@media (max-width: 719.98px) {
+  .ig-slide { aspect-ratio: 4 / 5; max-height: none; }
+  .ig-meta { bottom: 3rem; }
+  .ig-arrow { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ig-track { scroll-behavior: auto; }
+  .ig-photo, .ig-slide:hover .ig-photo { transition: none; transform: none; }
+  .ig-dot { transition: none; }
+}
