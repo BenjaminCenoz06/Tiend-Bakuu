@@ -6,6 +6,7 @@
 //  el carrusel de la portada.
 // =============================================================
 import { settingsRepo } from "../../repositories/settings.repo.js";
+import { StorageService } from "../../core/storage.service.js";
 import { createImageDrop } from "../ui/image-drop.js";
 import { openModal } from "../../core/ui/modal.js";
 import { confirmDialog } from "../../core/ui/confirm.js";
@@ -39,16 +40,82 @@ export const instagramView = {
           <input class="input" id="ig-perfil" placeholder="${PERFIL_DEFAULT}">
         </div>
         <div class="toolbar-spacer"></div>
-        <button class="btn" data-new>+ Agregar foto</button>
+        <input type="file" accept="image/*" multiple hidden data-file>
+        <button class="btn" data-new>+ Agregar fotos</button>
       </div>
 
-      <div data-list><div class="table-wrap"><div class="empty"><strong>Cargando…</strong></div></div></div>`;
+      <div data-progreso hidden></div>
+      <div data-list><div class="table-wrap"><div class="empty"><strong>Cargando…</strong></div></div></div>
 
-    el.querySelector("[data-new]").addEventListener("click", () => this._form(null));
-    el.querySelector("[data-list]").addEventListener("click", (e) => this._onAction(e));
+      <div class="ig-drop" data-drop tabindex="0" role="button"
+           style="margin-top:1rem;padding:1.5rem;border:1.5px dashed var(--border);border-radius:10px;text-align:center;cursor:pointer">
+        <strong style="display:block">Arrastrá varias fotos acá</strong>
+        <span class="td-mute">o hacé clic para elegirlas · hasta 5 MB cada una</span>
+      </div>`;
+
+    const file = el.querySelector("[data-file]");
+    const abrirSelector = () => file.click();
+
+    el.querySelector("[data-new]").addEventListener("click", abrirSelector);
+    file.addEventListener("change", () => { this._subir(file.files); file.value = ""; });
+
+    // Zona de arrastre: acepta varias fotos de una.
+    const zona = el.querySelector("[data-drop]");
+    zona.addEventListener("click", abrirSelector);
+    zona.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirSelector(); } });
+    ["dragenter", "dragover"].forEach(ev => zona.addEventListener(ev, (e) => {
+      e.preventDefault(); zona.style.borderColor = "var(--gold, #E8A63B)";
+    }));
+    ["dragleave", "drop"].forEach(ev => zona.addEventListener(ev, () => { zona.style.borderColor = "var(--border)"; }));
+    zona.addEventListener("drop", (e) => { e.preventDefault(); this._subir(e.dataTransfer.files); });
+
+    el.querySelector("[data-list]").addEventListener("click", (e) => {
+      if (e.target.closest("[data-vacio-subir]")) { abrirSelector(); return; }
+      this._onAction(e);
+    });
     el.querySelector("#ig-perfil").addEventListener("change", (e) => this._guardarPerfil(e.target.value.trim()));
 
     await this._reload();
+  },
+
+  /**
+   * Sube varias fotos de una. Mantiene el orden en que se eligieron,
+   * sube de a 3 en paralelo y guarda una sola vez al final: si se
+   * guardara foto por foto, cada una sería un viaje a la base.
+   */
+  async _subir(fileList) {
+    const files = [...(fileList || [])].filter(f => f.type.startsWith("image/"));
+    if (!files.length) { toast("Elegí al menos una imagen", "error"); return; }
+
+    const caja = this.el.querySelector("[data-progreso]");
+    const pintarProgreso = (hechas) => {
+      caja.innerHTML = `
+        <div class="table-wrap" style="padding:1rem 1.1rem">
+          <strong>Subiendo ${hechas} de ${files.length}…</strong>
+          <div style="margin-top:.6rem;height:6px;border-radius:999px;background:var(--border);overflow:hidden">
+            <div style="height:100%;width:${Math.round(hechas / files.length * 100)}%;background:var(--gold,#E8A63B);transition:width .25s"></div>
+          </div>
+        </div>`;
+    };
+    caja.hidden = false;
+    pintarProgreso(0);
+
+    const resultados = await subirEnTanda(files, pintarProgreso);
+    caja.hidden = true;
+    caja.innerHTML = "";
+
+    const subidas = resultados.filter(r => r.url);
+    const fallidas = resultados.filter(r => r.error);
+    if (subidas.length) {
+      // Sin título: se completa después desde el lápiz de cada fila.
+      this._fotos.push(...subidas.map(r => ({ url: r.url, titulo: "", link: "" })));
+      await this._guardar(
+        subidas.length === 1 ? "Foto agregada" : `${subidas.length} fotos agregadas`
+      );
+    }
+    if (fallidas.length) {
+      toast(`${fallidas.length} no se pudo subir: ${fallidas[0].error}`, "error", 5000);
+    }
   },
 
   async _reload() {
@@ -70,7 +137,8 @@ export const instagramView = {
       box.innerHTML = `<div class="table-wrap"><div class="empty">
         <div class="empty-ico">${ICON.ig}</div>
         <strong>Todavía no hay fotos</strong>
-        <p>Agregá las fotos de tu Instagram para que aparezcan en la portada.</p></div></div>`;
+        <p>Agregá las fotos de tu Instagram para que aparezcan en la portada.</p>
+        <button class="btn" data-vacio-subir style="margin-top:.8rem">+ Agregar fotos</button></div></div>`;
       return;
     }
     box.innerHTML = `<div class="table-wrap"><table class="data-table">
@@ -123,7 +191,8 @@ export const instagramView = {
     }
   },
 
-  /** Alta y edición comparten el mismo formulario. */
+  /** Editar una foto ya subida: título, enlace o reemplazar la imagen.
+      El alta va por [data-file], que acepta varias de una sola vez. */
   _form(index) {
     const editando = index != null;
     const foto = editando ? this._fotos[index] : null;
@@ -196,3 +265,31 @@ export const instagramView = {
     }
   },
 };
+
+/**
+ * Sube una tanda de archivos manteniendo el orden de elección.
+ * De a 3 en paralelo: en serie una carga de 15 fotos se hace eterna,
+ * y todas juntas el navegador estrangula las conexiones.
+ * Nunca lanza: cada archivo devuelve {url} o {error, nombre}.
+ */
+async function subirEnTanda(files, onProgress) {
+  const resultados = new Array(files.length);
+  let siguiente = 0;
+  let hechas = 0;
+
+  const obrero = async () => {
+    while (siguiente < files.length) {
+      const i = siguiente++;
+      try {
+        const { url } = await StorageService.upload("banners", files[i], "instagram");
+        resultados[i] = { url };
+      } catch (err) {
+        resultados[i] = { error: err.message, nombre: files[i].name };
+      }
+      onProgress(++hechas);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(3, files.length) }, obrero));
+  return resultados;
+}
