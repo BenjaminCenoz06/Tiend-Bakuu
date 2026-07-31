@@ -447,9 +447,28 @@ export function toStoreProduct(p) {
     badge: p.en_oferta ? "oferta" : (p.nuevo ? "nuevo" : (p.badge || null)),
     destacado: !!p.destacado,
     stock: p.stock,
+    stockPorTalle: stockPorTalle(p),
     activo: p.activo,
     art: p.art || arteDeCategoria((p.categoria && p.categoria.nombre) || p.categoryName, p.nombre || p.name),
   };
+}
+
+/**
+ * Cuántas unidades hay de cada talle, desde product_variants.
+ * La columna Stock del producto es el total; sin este reparto la ficha
+ * dejaba comprar el total en cualquier talle.
+ *
+ * @returns {Object|null} {"L":4,"XL":4} o null si la prenda no lleva talles.
+ */
+function stockPorTalle(p) {
+  const vars = p.variantes || p.variants || [];
+  if (!Array.isArray(vars) || !vars.length) return null;
+  const mapa = {};
+  vars.forEach(v => {
+    if (!v || !v.talle) return;
+    mapa[String(v.talle)] = (mapa[String(v.talle)] || 0) + (Number(v.stock) || 0);
+  });
+  return Object.keys(mapa).length ? mapa : null;
 }
 
 /**

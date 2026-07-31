@@ -35,15 +35,40 @@ const count = () => cart.reduce((a, i) => a + i.qty, 0);
 
 /* ---------- API pública ---------- */
 export const shop = {
+  /**
+   * Agrega al carrito respetando el stock de ese talle.
+   *
+   * `item.disponible` es cuántas unidades hay del talle elegido. Sin este
+   * tope, agregar 4 dos veces dejaba 8 en el carrito de un talle con 4:
+   * la ficha limitaba cada compra por separado, pero no la suma.
+   */
   add(item) {
     const talle = item.talle || "";
     const color = item.color || "";
+    const pedido = Math.max(1, Number(item.qty) || 1);
+    const disponible = Number(item.disponible);
     const found = cart.find(i => i.id === item.id && i.talle === talle && i.color === color);
-    if (found) found.qty += (item.qty || 1);
+    const yaEnCarrito = found ? found.qty : 0;
+
+    let cantidad = pedido;
+    if (Number.isFinite(disponible) && disponible >= 0) {
+      cantidad = Math.min(pedido, Math.max(0, disponible - yaEnCarrito));
+      if (cantidad <= 0) {
+        avisar(talle
+          ? `Ya tenés en el carrito todo lo que queda del talle ${talle}.`
+          : "Ya tenés en el carrito todo el stock disponible.");
+        return;
+      }
+      if (cantidad < pedido) {
+        avisar(`Agregamos ${cantidad} — es lo que queda${talle ? " del talle " + talle : ""}.`);
+      }
+    }
+
+    if (found) found.qty += cantidad;
     else cart.push({
       id: item.id, slug: item.slug || "", nombre: item.nombre,
       precio: Number(item.precio) || 0, imagen: item.imagen || "",
-      talle, color, qty: item.qty || 1,
+      talle, color, qty: cantidad,
     });
     persist();
     build(); render(); openCart();
@@ -62,6 +87,12 @@ function updateCount() {
 }
 
 /* ---------- Construcción del drawer (una vez) ---------- */
+/** Aviso al cliente reutilizando el toast del storefront; si no está, alert. */
+function avisar(mensaje) {
+  if (window.BAKU && typeof window.BAKU.toast === "function") window.BAKU.toast(mensaje);
+  else alert(mensaje);
+}
+
 function build() {
   if (els) return;
   const scrim = document.createElement("div");

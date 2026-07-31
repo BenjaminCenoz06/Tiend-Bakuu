@@ -289,6 +289,7 @@
   // el resto de la tienda en vez de llevar su propia cuenta aparte.
   window.BAKU.isFav = isFav;
   window.BAKU.toggleFav = toggleFav;
+  window.BAKU.toast = toast;      // lo usa el carrito para avisar del stock
 
   function paintFavs() {
     $$("[data-fav]").forEach(btn => {

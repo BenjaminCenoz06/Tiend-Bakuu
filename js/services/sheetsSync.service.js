@@ -143,6 +143,7 @@ function consolidar_(filas) {
 
     previa.stock = (Number(previa.stock) || 0) + (Number(fila.stock) || 0);
     previa.talles = [...new Set([...(previa.talles || []), ...(fila.talles || [])])];
+    previa.variantes = sumarVariantes_(previa.variantes, fila.variantes);
     previa.colores = [...new Set([...(previa.colores || []), ...(fila.colores || [])])];
     previa.precio = Math.max(Number(previa.precio) || 0, Number(fila.precio) || 0);
     previa.activo = previa.activo || fila.activo;
@@ -153,6 +154,16 @@ function consolidar_(filas) {
   salida.unificadas = salida.filter(f => f._filas > 1).length;
   salida.forEach(f => { delete f._filas; });
   return salida;
+}
+
+/** Une dos repartos por talle sumando las unidades de cada uno. */
+function sumarVariantes_(a, b) {
+  const mapa = new Map();
+  [...(a || []), ...(b || [])].forEach(v => {
+    if (!v || !v.talle) return;
+    mapa.set(v.talle, (mapa.get(v.talle) || 0) + (Number(v.stock) || 0));
+  });
+  return [...mapa.entries()].map(([talle, stock]) => ({ talle, stock }));
 }
 
 /**
@@ -188,6 +199,7 @@ function sheetProductToFields(p) {
     stock: p.stock,
     activo: p.activo,
     talles: p.sizes || [],
+    variantes: p.variantes || [],     // [{talle, stock}] → product_variants
     colores: p.colors || [],
     images: p.images || [],
     destacado: !!p.destacado,

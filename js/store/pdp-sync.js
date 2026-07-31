@@ -151,8 +151,12 @@ function render(p, settings, allProducts) {
   pintarPagos(precio);
   pintarStock(stock, agotado);
   const colorElegido = pintarColores(p, allProducts);
-  const pedirTalle = pintarTalles(p);
-  const leerCantidad = conectarCantidad(stock);
+
+  // La cantidad se limita por el talle elegido, no por el total de la
+  // prenda: con "8" repartido en "4 L, 4 XL" se podían pedir 8 en L.
+  const cantidad = conectarCantidad(stock);
+  const pedirTalle = pintarTalles(p, (talle) => cantidad.limitarA(stockDeTalle(p, talle, stock)));
+  const leerCantidad = cantidad.leer;
   conectarFavorito(p);
   conectarZoom();
   ocultarAcordeonesVacios();
@@ -170,6 +174,7 @@ function render(p, settings, allProducts) {
       talle: talle,
       color: colorElegido(),
       qty: leerCantidad(),
+      disponible: stockDeTalle(p, talle === "Único" ? null : talle, stock),
     });
   };
 
@@ -312,10 +317,11 @@ function ordenarTalles(lista) {
  * inventados: en una gorra o unas medias eso es mentirle al cliente.
  * Tampoco se preselecciona: que elija, así no compra un talle por defecto.
  */
-function pintarTalles(p) {
+function pintarTalles(p, alElegir) {
   const wrap = document.querySelector("[data-pdp-sizes]");
   const bloque = wrap && wrap.closest(".pdp-block");
   const lista = ordenarTalles((p.sizes || []).filter(Boolean));
+  const porTalle = p.stockPorTalle || null;
 
   if (!wrap) return () => "";
 
@@ -329,12 +335,21 @@ function pintarTalles(p) {
   }
 
   if (bloque) bloque.hidden = false;
-  wrap.innerHTML = lista.map(s => `<button class="qv-size" data-size="${esc(s)}">${esc(s)}</button>`).join("");
+  // Un talle sin unidades se muestra igual, tachado: al cliente le sirve
+  // saber que existe y se agotó, y evita que pregunte por él.
+  wrap.innerHTML = lista.map(s => {
+    const quedan = porTalle ? Number(porTalle[s] || 0) : null;
+    const sinStock = quedan === 0;
+    return `<button class="qv-size${sinStock ? " is-out" : ""}" data-size="${esc(s)}"${sinStock ? " disabled" : ""}
+      title="${sinStock ? "Sin stock" : (quedan ? `Quedan ${quedan}` : "")}">${esc(s)}</button>`;
+  }).join("");
+
   wrap.addEventListener("click", (e) => {
-    const b = e.target.closest("[data-size]"); if (!b) return;
+    const b = e.target.closest("[data-size]"); if (!b || b.disabled) return;
     wrap.querySelectorAll(".qv-size").forEach(x => x.classList.toggle("is-selected", x === b));
     const aviso = document.querySelector("[data-pdp-size-warn]");
     if (aviso) aviso.hidden = true;
+    if (alElegir) alElegir(b.dataset.size);
   });
 
   return () => {
@@ -346,22 +361,30 @@ function pintarTalles(p) {
   };
 }
 
-/** Cantidad, con tope en el stock real. */
-function conectarCantidad(stock) {
+/**
+ * Cantidad, con tope en el stock disponible. El tope arranca en el total
+ * de la prenda y baja al del talle elegido en cuanto el cliente elige uno.
+ */
+function conectarCantidad(stockTotal) {
   const out = document.querySelector("[data-pdp-qty-out]");
-  const tope = Math.max(1, Math.min(9, stock || 1));
+  const MAX_POR_PEDIDO = 9;
+  let disponible = Math.max(0, Number(stockTotal) || 0);
   let qty = 1;
+
+  const tope = () => Math.max(1, Math.min(MAX_POR_PEDIDO, disponible || 1));
 
   const pintar = () => {
     if (out) out.textContent = String(qty);
     document.querySelectorAll("[data-pdp-qty]").forEach(b => {
       const paso = Number(b.dataset.pdpQty);
-      b.disabled = (paso < 0 && qty <= 1) || (paso > 0 && qty >= tope);
+      b.disabled = (paso < 0 && qty <= 1) || (paso > 0 && qty >= tope());
     });
     const aviso = document.querySelector("[data-pdp-qty-max]");
     if (aviso) {
-      aviso.hidden = stock <= 0 || qty < tope || stock > 9;
-      aviso.textContent = "Es todo lo que queda de esta prenda";
+      aviso.hidden = disponible <= 0 || qty < tope() || disponible > MAX_POR_PEDIDO;
+      aviso.textContent = disponible === 1
+        ? "Es la última unidad de este talle"
+        : `Son las ${disponible} que quedan de este talle`;
     }
   };
 
@@ -369,13 +392,28 @@ function conectarCantidad(stock) {
     const clone = b.cloneNode(true);
     b.replaceWith(clone);
     clone.addEventListener("click", () => {
-      qty = Math.min(tope, Math.max(1, qty + Number(clone.dataset.pdpQty)));
+      qty = Math.min(tope(), Math.max(1, qty + Number(clone.dataset.pdpQty)));
       pintar();
     });
   });
 
   pintar();
-  return () => qty;
+  return {
+    leer: () => qty,
+    /** Cambia el tope al elegir un talle y recorta la cantidad si sobra. */
+    limitarA(nuevo) {
+      disponible = Math.max(0, Number(nuevo) || 0);
+      if (qty > tope()) qty = tope();
+      pintar();
+    },
+  };
+}
+
+/** Unidades del talle elegido; si la prenda no lleva reparto, el total. */
+function stockDeTalle(p, talle, stockTotal) {
+  const porTalle = p.stockPorTalle;
+  if (!porTalle || !talle) return stockTotal;
+  return porTalle[talle] != null ? Number(porTalle[talle]) : stockTotal;
 }
 
 /** Corazón: comparte lista y contadores con el resto de la tienda. */

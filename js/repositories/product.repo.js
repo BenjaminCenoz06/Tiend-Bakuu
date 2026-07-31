@@ -203,14 +203,16 @@ class ProductRepository extends BaseRepository {
     //    (dos filas idénticas comparten slug y el upsert las unificaría igual).
     const porSlug = new Map();
     const conImagenes = [];
+    const conVariantes = [];
     for (const row of rows) {
-      const { categoriaNombre, images, ...rest } = row;
+      const { categoriaNombre, images, variantes, ...rest } = row;
       if (!rest.slug) continue;
       porSlug.set(rest.slug, {
         ...rest,
         categoria_id: categoriaNombre ? (catIdPorSlug.get(slugify(categoriaNombre)) || null) : null,
       });
       if (images && images.length) conImagenes.push({ slug: rest.slug, images });
+      if (variantes && variantes.length) conVariantes.push({ slug: rest.slug, variantes });
     }
     const payloads = [...porSlug.values()];
 
@@ -254,6 +256,35 @@ class ProductRepository extends BaseRepository {
       for (const item of conImagenes) {
         const id = idPorSlug.get(item.slug);
         if (id) await this._syncImages(id, item.images.map(url => ({ url })));
+      }
+    }
+
+    // 5 bis) Stock por talle. La columna Stock dice cuántas prendas hay y
+    //        las Notas cómo se reparten ("8" = "4 XL, 4 L"). Sin esto la
+    //        tienda dejaba comprar las 8 en cualquier talle.
+    //        Se hace en dos consultas (un borrado y un alta por lotes) en
+    //        vez de dos por prenda: son ~300 productos por sincronización.
+    if (conVariantes.length) {
+      const { data: creados } = await supabase.from("products")
+        .select("id,slug").in("slug", conVariantes.map(x => x.slug));
+      const idPorSlug = new Map((creados || []).map(p => [p.slug, p.id]));
+      const ids = conVariantes.map(v => idPorSlug.get(v.slug)).filter(Boolean);
+
+      // Solo las variantes que vienen de la planilla: las que el dueño
+      // cargó a mano en el panel llevan color y no se tocan.
+      if (ids.length) await supabase.from("product_variants").delete().in("producto_id", ids).is("color", null);
+
+      const filasVariantes = [];
+      for (const item of conVariantes) {
+        const id = idPorSlug.get(item.slug);
+        if (!id) continue;
+        item.variantes.forEach(v => filasVariantes.push({
+          producto_id: id, talle: String(v.talle), stock: Number(v.stock) || 0, color: null,
+        }));
+      }
+      for (let i = 0; i < filasVariantes.length; i += 500) {
+        const { error } = await supabase.from("product_variants").insert(filasVariantes.slice(i, i + 500));
+        if (error) throw new Error(error.message);
       }
     }
 

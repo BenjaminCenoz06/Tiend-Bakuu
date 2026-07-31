@@ -4717,6 +4717,16 @@ picture.hero-slide { display: block; }
 /* Cantidad: al llegar al tope de stock se apaga el "+" */
 .pdp-qty button:disabled { opacity: 0.3; cursor: not-allowed; }
 
+/* Talle agotado: se muestra tachado en vez de esconderlo, así el cliente
+   ve que existe y no pregunta por él. */
+.qv-size.is-out {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  border-color: var(--line-soft);
+}
+.qv-size.is-out:hover { border-color: var(--line-soft); }
+
 /* `display:flex` le ganaba al atributo hidden y las miniaturas "Frente /
    Espalda" seguían a la vista en prendas sin fotos. */
 .pdp-thumbs[hidden], .pdp-block[hidden], .pdp-acc[hidden] { display: none; }

@@ -32,13 +32,94 @@ function slugify(text) {
  * Devuelve [] si no encuentra ninguno (accesorios de talle \u00fanico).
  */
 function parseTalles(str) {
-  if (!str) return [];
-  const s = String(str).toUpperCase();
-  const out = [];
-  const push = (t) => { if (t && out.indexOf(t) === -1) out.push(t); };
-  (s.match(/\b(XXXL|XXL|XL|XS|S|M|L)\b/g) || []).forEach(push);   // talles de letra
-  (s.match(/\b([2-6][0-9])\b/g) || []).forEach(push);              // talles num\u00e9ricos (20-69)
-  return out;
+  return parseTallesConCantidad(str, 0).map(v => v.talle);
+}
+
+const LETRAS_TALLE = "XXXL|XXL|XL|XS|S|M|L";
+// Cantidad pegada a un talle de letra.
+//  \u00b7 (?<![\d/]) evita leer "40" como cantidad en "1 30/40 S": ah\u00ed 30/40 es la
+//    equivalencia num\u00e9rica del talle S, no unidades.
+//  \u00b7 El talle se delimita por letras y no por \b, porque con \b "1XXL" no
+//    matcheaba (no hay borde entre el 1 y la X) y la fila se perd\u00eda entera.
+const PAR_TALLE_LETRA = new RegExp(`(?:(?<![\\d/])(\\d+)\\s*)?(?<![A-Z])(${LETRAS_TALLE})(?![A-Z])`, "g");
+const TALLE_NUMERICO = /\b([2-6][0-9])\b/g;
+
+/**
+ * Reparte el stock de la fila entre los talles anotados en "Notas".
+ *
+ * La columna Stock dice cu\u00e1ntas prendas hay en total y las Notas c\u00f3mo se
+ * reparten ("8" + "4 XL, 4 L"). Sin esto la tienda dejaba comprar las 8 en
+ * cualquier talle, y el local terminaba vendiendo un talle que no ten\u00eda.
+ *
+ * El texto es libre y cada fila est\u00e1 escrita distinto: "1 S, 1 M, 3 L",
+ * "2XL", "40/42/44", "3 S/1, 1 M/2", "1 M SLIM FIT".
+ *
+ * @param {string} notas  Contenido de la columna Notas.
+ * @param {number} stockTotal Contenido de la columna Stock.
+ * @returns {Array<{talle:string, stock:number}>} vac\u00edo si no se reconoce ninguno.
+ */
+export function parseTallesConCantidad(notas, stockTotal) {
+  const texto = String(notas || "").toUpperCase().trim();
+  if (!texto) return [];
+
+  const porTalle = new Map();
+  let cantidadExplicita = false;      // \u00bfel due\u00f1o escribi\u00f3 alguna cantidad?
+  const sumar = (talle, cant) => porTalle.set(talle, (porTalle.get(talle) || 0) + Math.max(0, cant));
+
+  for (const tramo of texto.split(/[,;]+/).map(t => t.trim()).filter(Boolean)) {
+    const pares = [...tramo.matchAll(PAR_TALLE_LETRA)];
+
+    if (pares.length) {
+      if (pares.length === 1) {
+        // Con un solo talle, la cantidad puede venir suelta al principio
+        // del tramo aunque no est\u00e9 pegada: "1 30/40 S" es una unidad de S.
+        const suelta = tramo.match(/^(\d+)[\s/]+/);
+        const cant = pares[0][1] || (suelta ? suelta[1] : null);
+        if (cant != null) cantidadExplicita = true;
+        sumar(pares[0][2], cant == null ? 1 : Number(cant));
+      } else {
+        pares.forEach(p => {
+          if (p[1] != null) cantidadExplicita = true;
+          sumar(p[2], p[1] == null ? 1 : Number(p[1]));
+        });
+      }
+      continue;
+    }
+
+    // Sin letras, los n\u00fameros son los talles: "3 38" son tres del 38,
+    // "40/42/44" es uno de cada uno.
+    const conCantidad = tramo.match(/^(\d+)\s+(.+)$/);
+    const numeros = [...(conCantidad ? conCantidad[2] : tramo).matchAll(TALLE_NUMERICO)].map(m => m[1]);
+    if (!numeros.length) continue;
+    if (conCantidad && numeros.length === 1) {
+      cantidadExplicita = true;
+      sumar(numeros[0], Number(conCantidad[1]));
+    } else {
+      numeros.forEach(n => sumar(n, 1));
+    }
+  }
+
+  const lista = [...porTalle.entries()].map(([talle, stock]) => ({ talle, stock }));
+  if (!lista.length) return [];
+
+  const total = Number(stockTotal || 0);
+
+  // Prenda agotada: se conservan los talles para poder mostrarlos como no
+  // disponibles, pero ninguno se puede comprar.
+  if (total <= 0) return lista.map(v => ({ talle: v.talle, stock: 0 }));
+
+  // Un \u00fanico talle anotado sin cantidad ("XXL" con Stock 2): las dos
+  // unidades son de ese talle. Si no, se vender\u00eda una sola de las dos.
+  if (lista.length === 1 && !cantidadExplicita) return [{ talle: lista[0].talle, stock: total }];
+
+  // Nunca por encima del stock total: es el n\u00famero que el due\u00f1o controla.
+  const suma = lista.reduce((a, v) => a + v.stock, 0);
+  if (suma > total) {
+    let restante = total;
+    for (const v of lista) { v.stock = Math.min(v.stock, restante); restante -= v.stock; }
+    return lista.filter(v => v.stock > 0);
+  }
+  return lista;
 }
 
 /**
@@ -169,9 +250,11 @@ export function normalizeSheetProduct(raw) {
   const coloresRaw = getField(raw, "Colores", "Color", "colores", "Colors");
   const colors = coloresRaw ? String(coloresRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : [];
 
-  // Talles: se extraen de "Notas" (texto libre del inventario: "1 S, 1 M, 3 L", "40/46"…).
+  // Talles y cuántas unidades hay de cada uno: salen de "Notas", el texto
+  // libre del inventario ("1 S, 1 M, 3 L", "4 XL, 4 L", "40/46"…).
   const tallesRaw = getField(raw, "Notas", "Talles", "Talle", "talles", "Sizes", "Size");
-  const sizes = parseTalles(tallesRaw);
+  const variantes = parseTallesConCantidad(tallesRaw, stock);
+  const sizes = variantes.map(v => v.talle);
 
   // Descripciones
   const desc = String(getField(raw, "Descripción", "Descripcion", "descripcion", "desc", "Description", "description", "Detalle", "detalle") || `${name} — Categoría ${categoryName}. Streetwear Baku.`).trim();
@@ -236,6 +319,7 @@ export function normalizeSheetProduct(raw) {
     color: colors[0] || "",
     colors: colors,
     sizes: sizes,
+    variantes: variantes,          // [{talle, stock}] repartido desde Notas
     image: mainImage || null,
     images: images,
     art: artSvg,
