@@ -6,7 +6,7 @@
 //  El botón de compra agrega al carrito e inicia compra vía WhatsApp/MP.
 // =============================================================
 import { fetchSettings, fetchProducts, toStoreProduct, getCachedProducts } from "./storefront-data.js";
-import { getColorHex } from "../core/colorDictionary.js";
+import { getColorHex, getColorShades, colorDeNombre, raizSinColor } from "../core/colorDictionary.js";
 import { shop } from "./shop.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -144,42 +144,23 @@ function render(p, settings, allProducts) {
     }
   }
 
-  // Colores (variantes) - Preparado para futuras columnas de variantes
-  const colorList = (p.colors && p.colors.length) ? p.colors : (p.color ? [p.color] : []);
-  const colors = document.querySelector("[data-pdp-colors]");
-  const colorLabel = document.querySelector("[data-pdp-colorname]");
-  if (colors) {
-    if (colorList.length) {
-      colors.innerHTML = colorList.map((c, i) => `<button class="pdp-color ${i === 0 ? "is-active" : ""}" style="--dot:${esc(getColorHex(c))}" title="${esc(c)}"></button>`).join("");
-      colors.addEventListener("click", (e) => {
-        const b = e.target.closest(".pdp-color"); if (!b) return;
-        colors.querySelectorAll(".pdp-color").forEach(x => x.classList.toggle("is-active", x === b));
-        if (colorLabel) colorLabel.textContent = colorList[[...colors.children].indexOf(b)];
-      });
-      if (colorLabel) colorLabel.textContent = colorList[0];
-    } else { colors.innerHTML = ""; if (colorLabel) colorLabel.textContent = "Único"; }
-  }
+  const stock = Number(p.stock || 0);
+  const agotado = stock <= 0 || p.activo === false;
 
-  // Talles
-  const sizeList = (p.sizes && p.sizes.length) ? p.sizes : ["S", "M", "L", "XL"];
-  const sizesWrap = document.querySelector("[data-pdp-sizes]");
-  if (sizesWrap) {
-    sizesWrap.innerHTML = sizeList.map((s, i) => `<button class="qv-size ${i === 0 ? "is-selected" : ""}" data-size="${esc(s)}">${esc(s)}</button>`).join("");
-    sizesWrap.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-size]"); if (!b) return;
-      sizesWrap.querySelectorAll(".qv-size").forEach(x => x.classList.toggle("is-selected", x === b));
-    });
-  }
+  pintarArte(p);
+  pintarPagos(precio);
+  pintarStock(stock, agotado);
+  const colorElegido = pintarColores(p, allProducts);
+  const pedirTalle = pintarTalles(p);
+  const leerCantidad = conectarCantidad(stock);
+  conectarFavorito(p);
+  conectarZoom();
+  ocultarAcordeonesVacios();
 
   // Botón de compra → agrega al carrito
   const addToCart = () => {
-    if (p.stock === 0 || p.activo === false) {
-      alert("Este producto se encuentra actualmente agotado.");
-      return;
-    }
-    const talle = document.querySelector("[data-pdp-sizes] .is-selected")?.textContent || "";
-    const color = document.querySelector("[data-pdp-colors] .is-active")?.title || "";
-    const qty = parseInt(document.querySelector("[data-pdp-qty-out]")?.textContent || "1", 10) || 1;
+    const talle = pedirTalle();
+    if (talle === null) return;          // hay talles y todavía no eligió
     shop.add({
       id: p.id,
       slug: p.slug || "",
@@ -187,38 +168,275 @@ function render(p, settings, allProducts) {
       precio: precio,
       imagen: p.image || "",
       talle: talle,
-      color: color,
-      qty: qty
+      color: colorElegido(),
+      qty: leerCantidad(),
     });
   };
 
   ["[data-pdp-add]", "[data-pdp-add-bar]"].forEach(sel => {
     const b = document.querySelector(sel);
-    if (b) {
-      const clone = b.cloneNode(true);
-      if (p.stock === 0 || p.activo === false) {
-        clone.textContent = "Sin Stock";
-        clone.style.opacity = "0.6";
-        clone.style.cursor = "not-allowed";
-      } else {
-        clone.textContent = "Agregar al carrito";
-      }
-      b.replaceWith(clone);
-      if (p.stock > 0 && p.activo !== false) {
-        clone.addEventListener("click", addToCart);
-      }
+    if (!b) return;
+    const clone = b.cloneNode(true);     // se clona para soltar los listeners del demo
+    if (agotado) {
+      clone.textContent = "Sin stock";
+      clone.disabled = true;
+      clone.classList.add("is-disabled");
+    } else {
+      clone.textContent = "Agregar al carrito";
+      clone.addEventListener("click", addToCart);
     }
+    b.replaceWith(clone);
   });
 
   // Productos relacionados
-  loadRelated(p.id, allProducts);
+  loadRelated(p, allProducts);
 }
 
-function loadRelated(excludeId, allProducts) {
+/* -------------------------------------------------------------
+   Controles de la ficha.
+   main.js corta en `if (urlId && !byId[urlId]) return;` cuando el id
+   es de Supabase, así que nada de lo de abajo estaba enganchado en los
+   productos reales: cantidad, corazón, zoom y miniaturas no hacían nada.
+   ------------------------------------------------------------- */
+
+/**
+ * Tiñe el dibujo de la prenda con su color real y saca las miniaturas
+ * "Frente / Espalda" cuando no hay fotos: eran botones del demo que no
+ * hacían nada y mostraban la misma silueta dos veces.
+ */
+function pintarArte(p) {
+  const color = (p.colors && p.colors[0]) || colorDeNombre(p.name || p.nombre);
+  if (color) {
+    const { g1, g2, g3 } = getColorShades(color);
+    document.querySelectorAll("[data-pdp-art], .pdp-thumb svg").forEach(svg => {
+      svg.style.setProperty("--g1", g1);
+      svg.style.setProperty("--g2", g2);
+      svg.style.setProperty("--g3", g3);
+    });
+  }
+  const thumbs = document.querySelector("[data-pdp-thumbs]");
+  const fotos = (p.images && p.images.length) ? p.images.length : (p.image ? 1 : 0);
+  if (thumbs && fotos < 2) thumbs.hidden = true;
+}
+
+/** Precio por transferencia y cuotas, igual que en las tarjetas. */
+function pintarPagos(precio) {
+  const transferencia = Math.round(precio * 0.85);
+  const cuota = Math.round(precio / 3);
+  const el = document.querySelector("[data-pdp-cuotas]");
+  if (!el) return;
+  el.innerHTML =
+    `<span class="pdp-pay-line"><strong>${money(transferencia)}</strong> con transferencia o efectivo <em>(15% off)</em></span>` +
+    `<span class="pdp-pay-line">3 cuotas sin interés de <strong>${money(cuota)}</strong></span>`;
+}
+
+/** Disponibilidad en palabras: el cliente tiene que saber con qué cuenta. */
+function pintarStock(stock, agotado) {
+  const el = document.querySelector("[data-pdp-stock]");
+  if (!el) return;
+  el.hidden = false;
+  if (agotado) {
+    el.className = "pdp-stock is-out";
+    el.textContent = "Sin stock — escribinos y te avisamos cuando vuelva";
+  } else if (stock <= 3) {
+    el.className = "pdp-stock is-low";
+    el.textContent = stock === 1 ? "¡Última unidad!" : `¡Últimas ${stock} unidades!`;
+  } else {
+    el.className = "pdp-stock is-ok";
+    el.textContent = "Disponible · entrega en 24–72 h";
+  }
+}
+
+/**
+ * Colores. La planilla no tiene columna de color: el color va escrito en
+ * el nombre ("REMERA GRIS SNAKE"). Se detecta ahí y, si hay otras prendas
+ * de la misma familia en otro color, cada punto lleva a esa ficha.
+ */
+function pintarColores(p, allProducts) {
+  const cont = document.querySelector("[data-pdp-colors]");
+  const label = document.querySelector("[data-pdp-colorname]");
+  const bloque = cont && cont.closest(".pdp-block");
+  const nombre = p.name || p.nombre || "";
+
+  const propio = (p.colors && p.colors.length) ? p.colors[0] : colorDeNombre(nombre);
+  const hermanas = familia(p, allProducts);
+
+  if (!cont) return () => propio || "";
+
+  if (!propio && !hermanas.length) {
+    if (bloque) bloque.hidden = true;     // sin dato, no se inventa un "Único"
+    return () => "";
+  }
+
+  if (bloque) bloque.hidden = false;
+  if (label) label.textContent = propio || "Único";
+
+  const opciones = [{ id: p.id, color: propio || "Único", actual: true },
+    ...hermanas.map(h => ({ id: h.id, color: colorDeNombre(h.name || h.nombre) || "Otro", actual: false }))];
+
+  cont.innerHTML = opciones.map(o =>
+    `<a class="pdp-color ${o.actual ? "is-active" : ""}" style="--dot:${esc(getColorHex(o.color))}"
+        title="${esc(o.color)}" aria-label="Color ${esc(o.color)}"
+        href="${o.actual ? "#" : "producto.html?id=" + esc(o.id)}"></a>`).join("");
+
+  return () => propio || "";
+}
+
+/** Prendas con el mismo nombre salvo el color: sirven de variante. */
+function familia(p, allProducts) {
+  const base = raizSinColor(p.name || p.nombre);
+  if (!base || base.length < 6) return [];
+  return (allProducts || [])
+    .filter(o => String(o.id) !== String(p.id) &&
+      o.categoryName === p.categoryName &&
+      raizSinColor(o.name || o.nombre) === base &&
+      colorDeNombre(o.name || o.nombre))
+    .slice(0, 5);
+}
+
+/** Los talles salen de un texto libre ("2 38, 1 46, 42"), así que llegan
+    en cualquier orden: de chico a grande, y los números antes que nada. */
+const ORDEN_LETRAS = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+function ordenarTalles(lista) {
+  return [...lista].sort((a, b) => {
+    const na = Number(a), nb = Number(b);
+    const aNum = !isNaN(na), bNum = !isNaN(nb);
+    if (aNum && bNum) return na - nb;
+    if (aNum !== bNum) return aNum ? -1 : 1;
+    return ORDEN_LETRAS.indexOf(String(a).toUpperCase()) - ORDEN_LETRAS.indexOf(String(b).toUpperCase());
+  });
+}
+
+/**
+ * Talles. Antes, si la prenda no traía talles se mostraban S/M/L/XL
+ * inventados: en una gorra o unas medias eso es mentirle al cliente.
+ * Tampoco se preselecciona: que elija, así no compra un talle por defecto.
+ */
+function pintarTalles(p) {
+  const wrap = document.querySelector("[data-pdp-sizes]");
+  const bloque = wrap && wrap.closest(".pdp-block");
+  const lista = ordenarTalles((p.sizes || []).filter(Boolean));
+
+  if (!wrap) return () => "";
+
+  if (!lista.length) {
+    if (bloque) {
+      const label = bloque.querySelector(".pdp-label");
+      if (label) label.textContent = "Talle único";
+      wrap.innerHTML = "";
+    }
+    return () => "Único";
+  }
+
+  if (bloque) bloque.hidden = false;
+  wrap.innerHTML = lista.map(s => `<button class="qv-size" data-size="${esc(s)}">${esc(s)}</button>`).join("");
+  wrap.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-size]"); if (!b) return;
+    wrap.querySelectorAll(".qv-size").forEach(x => x.classList.toggle("is-selected", x === b));
+    const aviso = document.querySelector("[data-pdp-size-warn]");
+    if (aviso) aviso.hidden = true;
+  });
+
+  return () => {
+    const elegido = wrap.querySelector(".is-selected");
+    if (elegido) return elegido.dataset.size;
+    const aviso = document.querySelector("[data-pdp-size-warn]");
+    if (aviso) { aviso.hidden = false; aviso.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    return null;
+  };
+}
+
+/** Cantidad, con tope en el stock real. */
+function conectarCantidad(stock) {
+  const out = document.querySelector("[data-pdp-qty-out]");
+  const tope = Math.max(1, Math.min(9, stock || 1));
+  let qty = 1;
+
+  const pintar = () => {
+    if (out) out.textContent = String(qty);
+    document.querySelectorAll("[data-pdp-qty]").forEach(b => {
+      const paso = Number(b.dataset.pdpQty);
+      b.disabled = (paso < 0 && qty <= 1) || (paso > 0 && qty >= tope);
+    });
+    const aviso = document.querySelector("[data-pdp-qty-max]");
+    if (aviso) {
+      aviso.hidden = stock <= 0 || qty < tope || stock > 9;
+      aviso.textContent = "Es todo lo que queda de esta prenda";
+    }
+  };
+
+  document.querySelectorAll("[data-pdp-qty]").forEach(b => {
+    const clone = b.cloneNode(true);
+    b.replaceWith(clone);
+    clone.addEventListener("click", () => {
+      qty = Math.min(tope, Math.max(1, qty + Number(clone.dataset.pdpQty)));
+      pintar();
+    });
+  });
+
+  pintar();
+  return () => qty;
+}
+
+/** Corazón: comparte lista y contadores con el resto de la tienda. */
+function conectarFavorito(p) {
+  const btn = document.querySelector("[data-pdp-fav]");
+  if (!btn || !window.BAKU || !window.BAKU.toggleFav) return;
+
+  // El clon primero: `pintar` tiene que apuntar al nodo que queda en la
+  // página, no al original, que después de replaceWith ya no se ve.
+  const clone = btn.cloneNode(true);
+  btn.replaceWith(clone);
+
+  const pintar = () => {
+    const activo = window.BAKU.isFav(String(p.id));
+    clone.classList.toggle("is-active", activo);
+    clone.setAttribute("aria-pressed", String(activo));
+  };
+
+  clone.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();               // no dispara el zoom del escenario
+    window.BAKU.toggleFav(String(p.id));
+    setTimeout(pintar, 0);
+  });
+  pintar();
+}
+
+/** Zoom al tocar la foto. */
+function conectarZoom() {
+  const stage = document.querySelector("[data-pdp-stage]");
+  if (!stage) return;
+  const hint = document.querySelector("[data-pdp-zoom-hint]");
+  stage.addEventListener("click", (e) => {
+    if (e.target.closest("button, a")) return;
+    const media = stage.querySelector("[data-pdp-photo], [data-pdp-art]");
+    if (!media) return;
+    const activo = media.classList.toggle("is-zoom");
+    stage.style.cursor = activo ? "zoom-out" : "zoom-in";
+    if (hint) hint.hidden = activo;
+  });
+}
+
+/** Un acordeón vacío ("Materiales: —") queda peor que no mostrarlo. */
+function ocultarAcordeonesVacios() {
+  document.querySelectorAll(".pdp-acc").forEach(acc => {
+    const textos = [...acc.querySelectorAll("p")].map(t => t.textContent.trim().replace(/^—$/, ""));
+    if (!textos.some(Boolean)) acc.hidden = true;
+  });
+}
+
+function loadRelated(p, allProducts) {
   const wrap = document.querySelector("[data-pdp-related]");
   if (!wrap) return;
 
-  const relatedList = (allProducts || []).filter(r => String(r.id) !== String(excludeId)).slice(0, 4);
+  // Primero de la misma categoría y con stock: "también va con esto" tiene
+  // que ser algo que se pueda comprar, no las primeras cuatro del catálogo.
+  const otras = (allProducts || []).filter(r => String(r.id) !== String(p.id));
+  const mismaCat = otras.filter(r => r.categoryName === p.categoryName && Number(r.stock) > 0);
+  const resto = otras.filter(r => Number(r.stock) > 0 && !mismaCat.includes(r));
+  const relatedList = [...mismaCat, ...resto].slice(0, 4);
+
   if (!relatedList.length) {
     wrap.closest(".pdp-related")?.setAttribute("hidden", "");
     return;

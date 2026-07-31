@@ -448,6 +448,33 @@ export function toStoreProduct(p) {
     destacado: !!p.destacado,
     stock: p.stock,
     activo: p.activo,
-    art: p.art || "g-tee",
+    art: p.art || arteDeCategoria((p.categoria && p.categoria.nombre) || p.categoryName, p.nombre || p.name),
   };
+}
+
+/**
+ * Qué silueta dibujar cuando la prenda no tiene foto.
+ * En Supabase no hay columna `art`, así que sin esto todo el catálogo
+ * —shorts, gorras, camperas— se dibujaba como remera.
+ */
+const ARTE_POR_CATEGORIA = {
+  remeras: "g-tee", camisetas: "g-tee", musculosas: "g-tee",
+  buzos: "g-hoodie", sweatter: "g-crew", sweaters: "g-crew",
+  pantalones: "g-pants", shorts: "g-pants", bermudas: "g-pants", jeans: "g-pants",
+  camisas: "g-shirt", camperas: "g-jacket", abrigos: "g-jacket",
+  gorras: "g-cap", accesorios: "g-cap",
+};
+
+function arteDeCategoria(categoria, nombre) {
+  const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const cat = norm(categoria);
+  if (ARTE_POR_CATEGORIA[cat]) return ARTE_POR_CATEGORIA[cat];
+
+  // La categoría "PANTALONES" agrupa shorts y bermudas, y "REMERAS"
+  // agrupa camisetas: se afina mirando también el nombre de la prenda.
+  const n = norm(nombre);
+  for (const clave of Object.keys(ARTE_POR_CATEGORIA)) {
+    if (n.includes(clave.replace(/s$/, ""))) return ARTE_POR_CATEGORIA[clave];
+  }
+  return "g-tee";
 }

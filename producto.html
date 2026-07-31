@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Inter:wght@300..600&family=JetBrains+Mono:wght@300..500&display=swap">
 
   <link rel="preload" as="image" href="assets/img/local-interior.jpg" fetchpriority="high">
-  <link rel="stylesheet" href="styles.css?v=20260748_v10">
+  <link rel="stylesheet" href="styles.css?v=20260748_v11">
 </head>
 <body>
 
@@ -177,6 +177,8 @@
           </div>
         </div>
 
+        <p class="pdp-stock" data-pdp-stock hidden></p>
+
         <div class="pdp-block">
           <p class="pdp-label">Talle</p>
           <div class="pdp-sizes qv-sizes" data-pdp-sizes>
@@ -186,6 +188,7 @@
             <button class="qv-size">XL</button>
             <button class="qv-size">XXL</button>
           </div>
+          <p class="pdp-warn" data-pdp-size-warn hidden>Elegí un talle para continuar</p>
         </div>
 
         <div class="pdp-buy">
@@ -196,6 +199,7 @@
           </div>
           <button class="btn btn-solid pdp-add" data-pdp-add>Agregar al carrito</button>
         </div>
+        <p class="pdp-hint" data-pdp-qty-max hidden></p>
 
         <p class="pdp-ship">Envíos en 24–72 h · Gratis desde $150.000 · Cambios sin cargo dentro de los 30 días</p>
 
@@ -670,8 +674,8 @@
   <script defer src="lib/ScrollTrigger.min.js"></script>
   <script defer src="lib/auth.js?v=20260723_v5"></script>
   <script defer src="lib/manifest.js?v=20260723_v5"></script>
-  <script defer src="main.js?v=20260723_v5"></script>
-  <script type="module" src="js/store/pdp-sync.js?v=20260723_v5"></script>
+  <script defer src="main.js?v=20260731_v1"></script>
+  <script type="module" src="js/store/pdp-sync.js?v=20260731_v1"></script>
   <script type="module" src="js/store/account.js?v=20260724"></script>
 
 </body>

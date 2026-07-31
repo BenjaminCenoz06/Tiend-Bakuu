@@ -284,6 +284,12 @@
     renderDrawer();
   }
 
+  // La ficha de los productos reales la maneja js/store/pdp-sync.js, que
+  // necesita estos dos para que el corazón comparta lista y contadores con
+  // el resto de la tienda en vez de llevar su propia cuenta aparte.
+  window.BAKU.isFav = isFav;
+  window.BAKU.toggleFav = toggleFav;
+
   function paintFavs() {
     $$("[data-fav]").forEach(btn => {
       const card = btn.closest("[data-product]");
@@ -995,9 +1001,17 @@
 
     const params = new URLSearchParams(location.search);
     const urlId = params.get("id");
-    // Si el id no está en el catálogo demo, es un producto de Supabase:
-    // lo completa js/store/pdp-sync.js. main.js no toca esta ficha.
-    if (urlId && !byId[urlId]) return;
+    // Si el id es un UUID, el producto es de Supabase y la ficha la arma
+    // js/store/pdp-sync.js: main.js no la toca.
+    //
+    // Antes se preguntaba `!byId[urlId]`, y eso era una carrera: cuando el
+    // catálogo real venía de la caché local, pdp-sync alcanzaba a inyectarlo
+    // antes de esta línea, main.js se quedaba con la ficha y los dos
+    // enganchaban los mismos botones (cantidad saltaba de a dos, "agregar"
+    // cargaba el producto duplicado). El formato del id no depende de quién
+    // llegó primero.
+    const esDeSupabase = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(urlId || "");
+    if (urlId && (esDeSupabase || !byId[urlId])) return;
     const first = (data.products[0] || {}).id;
     const id = byId[urlId] ? urlId : first;
     pdpRender(id);

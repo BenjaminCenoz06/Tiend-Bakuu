@@ -4659,3 +4659,72 @@ picture.hero-slide { display: block; }
   .ig-photo, .ig-slide:hover .ig-photo { transition: none; transform: none; }
   .ig-dot { transition: none; }
 }
+
+/* =============================================================
+   36. FICHA DE PRODUCTO — señales de compra
+   Disponibilidad, condiciones de pago y avisos. El cliente tiene
+   que ver de un vistazo si le queda, cuánto sale por transferencia
+   y qué le falta elegir para poder comprar.
+   ============================================================= */
+.pdp-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0 1.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.pdp-stock::before {
+  content: "";
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pdp-stock.is-ok  { color: #1E8E4A; }
+.pdp-stock.is-low { color: #B4740F; }
+.pdp-stock.is-out { color: #B33A3A; }
+
+/* Pagos: dos líneas, la de transferencia con más peso */
+.pdp-cuotas { display: flex; flex-direction: column; gap: 0.25rem; }
+.pdp-pay-line { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.45; }
+.pdp-pay-line strong { color: var(--ink); font-weight: 700; }
+.pdp-pay-line em { font-style: normal; color: #1E8E4A; font-weight: 600; }
+
+/* Avisos: sólo aparecen cuando hacen falta */
+.pdp-warn {
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #B33A3A;
+}
+.pdp-hint {
+  margin-top: 0.6rem;
+  font-size: 0.76rem;
+  color: var(--ink-mute);
+}
+
+/* Sin stock: el botón se apaga en gris, no en dorado descolorido */
+.pdp-add.is-disabled, .pdp-bar-add.is-disabled {
+  background: var(--line);
+  color: var(--ink-mute);
+  border-color: transparent;
+  box-shadow: none;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Cantidad: al llegar al tope de stock se apaga el "+" */
+.pdp-qty button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* `display:flex` le ganaba al atributo hidden y las miniaturas "Frente /
+   Espalda" seguían a la vista en prendas sin fotos. */
+.pdp-thumbs[hidden], .pdp-block[hidden], .pdp-acc[hidden] { display: none; }
+
+/* Los puntos de color ahora son enlaces a la prenda de ese color */
+a.pdp-color { display: inline-block; text-decoration: none; }
+a.pdp-color:not(.is-active):hover { transform: scale(1.12); }
+
+/* El zoom también aplica a la foto real, no sólo al arte SVG */
+.pdp-stage { cursor: zoom-in; }
+.pdp-photo.is-zoom { transform: scale(1.8); cursor: zoom-out; }

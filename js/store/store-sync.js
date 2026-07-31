@@ -7,7 +7,7 @@
 //  con su catálogo/branding de base (nunca se rompe).
 // =============================================================
 import { fetchSettings, fetchProducts, fetchBanners, fetchCategories, applyTheme, applyHeroBanners, toStoreProduct, getCachedProducts, revealOnScroll, configurarPagos, bloquePagos, tieneEnvioGratis } from "./storefront-data.js";
-import { getColorHex } from "../core/colorDictionary.js";
+import { getColorHex, getColorShades, colorDeNombre } from "../core/colorDictionary.js";
 import { applyInstagram } from "./instagram.js";
 
 const money = (n) => "$" + Number(n || 0).toLocaleString("es-AR", { maximumFractionDigits: 0 });
@@ -212,11 +212,16 @@ function card(p) {
   const envio = (p.stock !== 0 && p.activo !== false && tieneEnvioGratis(p.price))
     ? '<span class="badge-envio">Envío gratis</span>' : "";
 
-  // Media: foto si existe URL, o arte SVG correspondiente a la categoría
+  // Media: foto si existe URL, o arte SVG de la categoría teñido con el
+  // color de la prenda (en la planilla el color va dentro del nombre, así
+  // que sin esto toda la grilla se veía del mismo tono que la categoría).
   const artId = p.art || "g-tee";
+  const colorPrenda = (p.colors && p.colors[0]) || colorDeNombre(p.name || "");
+  const tonos = colorPrenda ? getColorShades(colorPrenda) : null;
+  const estiloArte = tonos ? ` style="--g1:${tonos.g1};--g2:${tonos.g2};--g3:${tonos.g3}"` : "";
   const media = p.image
     ? `<img class="card-photo" src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`
-    : `<div class="card-art"><svg class="art" viewBox="0 0 400 500"><use href="#${esc(artId)}"/></svg></div>`;
+    : `<div class="card-art"><svg class="art" viewBox="0 0 400 500"${estiloArte}><use href="#${esc(artId)}"/></svg></div>`;
 
   // Precio y cuotas
   const price = p.oldPrice
