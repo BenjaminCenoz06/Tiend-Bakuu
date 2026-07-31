@@ -10,6 +10,7 @@ import { toast } from "../../core/ui/toast.js";
 import { money, esc, dateTime } from "../../core/format.js";
 import { getColorHex } from "../../core/colorDictionary.js";
 import { pullAllFromSheet, getLastSync } from "../../services/sheetsSync.service.js";
+import { hayVersionNueva } from "../../core/version-guard.js";
 
 const ICON = {
   box:  '<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zm0 0v10l9 4 9-4V7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
@@ -66,6 +67,15 @@ export const productosView = {
     const rotulo = btn.textContent;
     btn.disabled = true; btn.classList.add("is-loading");
     try {
+      // Si se publicó una versión nueva del panel mientras esta pestaña
+      // estaba abierta, sincronizar ahora escribiría con el código viejo.
+      btn.textContent = "Verificando versión…";
+      if (await hayVersionNueva()) {
+        toast("Hay una versión nueva del panel. Recargando para sincronizar con ella…", "ok", 3500);
+        setTimeout(() => location.reload(), 1200);
+        return;
+      }
+
       const t0 = performance.now();
       btn.textContent = "Leyendo la planilla…";
       const rows = await pullAllFromSheet();

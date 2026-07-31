@@ -3,6 +3,7 @@
 //  Guard → carga marca → router con vistas → navegación/drawer.
 // =============================================================
 import { requireAdmin, logout } from "../core/guard.js";
+import { registrarVersion } from "../core/version-guard.js";
 import { settingsRepo } from "../repositories/settings.repo.js";
 import { Router } from "./router.js";
 import { dashboardView } from "./views/dashboard.js";
@@ -26,6 +27,10 @@ const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   // 2) Mostrar la app
   $("#guard-loading").hidden = true;
   $("#app").hidden = false;
+
+  // 2 bis) Huella de la versión cargada, para avisar si se publica otra
+  //        mientras esta pestaña sigue abierta.
+  registrarVersion();
 
   // 3) Datos del usuario en la barra
   $("[data-user-email]").textContent = user.email;
