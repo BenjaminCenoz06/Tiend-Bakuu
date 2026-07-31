@@ -120,10 +120,19 @@ export function normalizeSheetProduct(raw) {
 
   // Stock y Estado
   const stockVal = getField(raw, "Stock", "stock", "Cantidad", "cantidad");
-  const stock = stockVal !== undefined && stockVal !== "" && stockVal !== null ? Number(stockVal) : 0;
+  const stockCargado = stockVal !== undefined && stockVal !== "" && stockVal !== null ? Number(stockVal) : 0;
 
   const estadoStr = String(getField(raw, "Estado", "estado", "Status", "status") || "Disponible").trim();
-  const isAvailable = estadoStr.toLowerCase() !== "inactivo" && estadoStr.toLowerCase() !== "oculto" && estadoStr.toLowerCase() !== "desactivado";
+  const estadoLower = estadoStr.toLowerCase();
+
+  // "Agotado" manda sobre la columna Stock. En la planilla del local esa
+  // columna guarda cuántas unidades entraron, no cuántas quedan: hay 87
+  // prendas marcadas Agotado que igual tienen 1, 2 o 3 anotadas. Si se
+  // creyera al número, la tienda vendería prendas que ya no están.
+  const agotado = /agotad|sin\s*stock/.test(estadoLower);
+  const stock = agotado ? 0 : stockCargado;
+
+  const isAvailable = estadoLower !== "inactivo" && estadoLower !== "oculto" && estadoLower !== "desactivado";
 
   // Badge automático (Sin Stock / Oferta % / Personalizado)
   let badge = null;
