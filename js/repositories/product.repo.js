@@ -226,11 +226,20 @@ class ProductRepository extends BaseRepository {
       }).filter(Boolean));
     }
 
+    // 3 bis) Foto del catálogo ANTES de escribir: sirve para contar altas
+    //        reales y para detectar prendas que dejaron de figurar.
+    const { data: previos } = await supabase.from("products").select("slug,nombre,sheet_synced_at");
+    const slugsPrevios = new Set((previos || []).map(p => p.slug).filter(Boolean));
+    const slugsDeLaPlanilla = new Set(payloads.map(p => p.slug));
+
     // 4) Upsert por lotes: una sola consulta cada 150 productos.
+    //    `sheet_synced_at` deja marcado el origen, así se distingue lo que
+    //    baja de la planilla de lo que el dueño carga a mano en el panel.
+    const sello = new Date().toISOString();
     const LOTE = 150;
     let hechos = 0;
     for (let i = 0; i < payloads.length; i += LOTE) {
-      const lote = payloads.slice(i, i + LOTE);
+      const lote = payloads.slice(i, i + LOTE).map(p => ({ ...p, sheet_synced_at: sello }));
       const { error } = await supabase.from("products").upsert(lote, { onConflict: "slug" });
       if (error) throw new Error(error.message);
       hechos += lote.length;
@@ -248,7 +257,38 @@ class ProductRepository extends BaseRepository {
       }
     }
 
-    return payloads.length;
+    // 6) Prendas publicadas que ya no figuran en la planilla. Son las
+    //    peligrosas: se pueden vender sin existir en el inventario real.
+    //    No se tocan solas —puede ser una prenda cargada a mano desde el
+    //    panel— así que se devuelven para que el dueño decida.
+    //    No alcanza con mirar `sheet_synced_at`: hoy ninguna fila lo tiene
+    //    (la columna existe pero nunca se escribió), así que una prenda
+    //    que ya salió de la planilla nunca volvería a recibir el sello y
+    //    quedaría publicada para siempre.
+    const ausentes = (previos || [])
+      .filter(p => p.slug && !slugsDeLaPlanilla.has(p.slug))
+      .map(p => ({ slug: p.slug, nombre: p.nombre, deLaPlanilla: !!p.sheet_synced_at }));
+
+    return {
+      total: payloads.length,
+      nuevos: payloads.filter(p => !slugsPrevios.has(p.slug)).length,
+      unificadas: rows.unificadas || 0,
+      ausentes,
+    };
+  }
+
+  /**
+   * Pausa las prendas que ya no están en la planilla: quedan sin stock y
+   * fuera de la tienda, pero no se borran — conservan fotos, destacados y
+   * el historial de pedidos por si el dueño vuelve a cargarlas.
+   */
+  async pausarPorSlugs(slugs) {
+    if (!slugs || !slugs.length) return 0;
+    const { error } = await supabase.from("products")
+      .update({ activo: false, stock: 0 })
+      .in("slug", slugs);
+    if (error) throw new Error(error.message);
+    return slugs.length;
   }
 
   async _resolveCategoriaId(nombre) {

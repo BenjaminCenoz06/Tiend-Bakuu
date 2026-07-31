@@ -119,7 +119,53 @@ export async function pullAllFromSheet() {
   const res = await fetchSheetsProducts({ forceRefresh: true });
   if (!res.success) throw new Error(res.error || "No se pudo leer la planilla");
   setLastSync();
-  return res.data.map(sheetProductToFields);
+  return consolidar_(res.data.map(sheetProductToFields));
+}
+
+/**
+ * Unifica las filas que caen en el mismo slug.
+ *
+ * En la planilla real una misma prenda aparece repetida cuando entró en
+ * dos compras distintas (ej. SHORT JEAN AZUL ELASTIZADO: una fila con 3
+ * en talles 30/40 y otra con 6 en 36/38/42). Quedarse con la última
+ * fila —lo que hacía antes— publicaba 6 en vez de 9 y perdía dos talles.
+ *
+ * Criterio: el stock se suma, los talles y colores se unen, el precio es
+ * el mayor de las filas y la prenda queda activa si alguna fila lo está.
+ */
+function consolidar_(filas) {
+  const porSlug = new Map();
+
+  for (const fila of filas) {
+    if (!fila.slug) continue;
+    const previa = porSlug.get(fila.slug);
+    if (!previa) { porSlug.set(fila.slug, { ...fila, _filas: 1 }); continue; }
+
+    previa.stock = (Number(previa.stock) || 0) + (Number(fila.stock) || 0);
+    previa.talles = [...new Set([...(previa.talles || []), ...(fila.talles || [])])];
+    previa.colores = [...new Set([...(previa.colores || []), ...(fila.colores || [])])];
+    previa.precio = Math.max(Number(previa.precio) || 0, Number(fila.precio) || 0);
+    previa.activo = previa.activo || fila.activo;
+    previa._filas++;
+  }
+
+  const salida = [...porSlug.values()];
+  salida.unificadas = salida.filter(f => f._filas > 1).length;
+  salida.forEach(f => { delete f._filas; });
+  return salida;
+}
+
+/**
+ * Redondea a dos decimales.
+ *
+ * La columna `tarjeta` de la planilla sale de multiplicar por 1,1 dentro
+ * de Google Sheets y arrastra basura binaria: 92400.00000000001. Guardarlo
+ * así ensucia la base y hace que cada sincronización crea que el precio
+ * cambió, aunque nadie lo haya tocado.
+ */
+function redondear_(n) {
+  const v = Number(n);
+  return Number.isFinite(v) ? Math.round(v * 100) / 100 : v;
 }
 
 function slugify_(text) {
@@ -137,8 +183,8 @@ function sheetProductToFields(p) {
     descripcion: p.desc || null,
     descripcion_larga: p.descLarga || null,
     categoriaNombre: p.categoryName || null,
-    precio: p.oldPrice || p.price,
-    precio_oferta: p.oldPrice ? p.price : null,
+    precio: redondear_(p.oldPrice || p.price),
+    precio_oferta: p.oldPrice ? redondear_(p.price) : null,
     stock: p.stock,
     activo: p.activo,
     talles: p.sizes || [],

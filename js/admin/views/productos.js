@@ -67,19 +67,64 @@ export const productosView = {
     btn.disabled = true; btn.classList.add("is-loading");
     try {
       const t0 = performance.now();
+      btn.textContent = "Leyendo la planilla…";
       const rows = await pullAllFromSheet();
-      const total = await productRepo.bulkUpsertFromSheet(rows, (hechos, cuantos) => {
+      const r = await productRepo.bulkUpsertFromSheet(rows, (hechos, cuantos) => {
         btn.textContent = `Sincronizando… ${hechos}/${cuantos}`;
       });
       const seg = ((performance.now() - t0) / 1000).toFixed(1);
-      toast(`Sincronizado: ${total} producto(s) en ${seg}s`, "ok");
+
+      // Resumen concreto: el dueño tiene que poder ver qué cambió.
+      const partes = [`${r.total} prendas en ${seg}s`];
+      if (r.nuevos) partes.push(`${r.nuevos} nueva(s)`);
+      if (r.unificadas) partes.push(`${r.unificadas} fila(s) repetida(s) unificada(s)`);
+      toast("Planilla sincronizada · " + partes.join(" · "), "ok", 5000);
+
       this._paintSyncNote();
       await this._reload();
+      if (r.ausentes && r.ausentes.length) await this._preguntarPorAusentes(r.ausentes);
     } catch (err) {
       toast("No se pudo sincronizar: " + err.message, "error");
     } finally {
       btn.textContent = rotulo;
       btn.disabled = false; btn.classList.remove("is-loading");
+    }
+  },
+
+  /**
+   * Prendas publicadas que ya no aparecen en la planilla. Se pregunta en vez
+   * de pausarlas solas: puede ser que el dueño borró la fila, que la renombró,
+   * o que sea una prenda cargada a mano desde el panel.
+   *
+   * Si contesta "dejarlas como están", se anotan en este navegador para no
+   * volver a preguntar por las mismas en cada sincronización.
+   */
+  async _preguntarPorAusentes(todas) {
+    const ignoradas = leerIgnoradas();
+    const ausentes = todas.filter(p => !ignoradas.includes(p.slug));
+    if (!ausentes.length) return;
+
+    const lista = ausentes.slice(0, 12).map(p => `<li>${esc(p.nombre)}</li>`).join("");
+    const resto = ausentes.length > 12 ? `<p>…y ${ausentes.length - 12} más.</p>` : "";
+    const ok = await confirmDialog({
+      title: `${ausentes.length} prenda(s) ya no están en la planilla`,
+      message: `Siguen publicadas en la tienda pero desaparecieron de STOCK:
+        <ul style="text-align:left;margin:.7rem 0;padding-left:1.1rem">${lista}</ul>${resto}
+        ¿Las pauso? Quedan sin stock y fuera de la tienda, sin borrarse: conservan fotos e historial.`,
+      okText: "Pausar en la tienda",
+      cancelText: "Dejarlas como están",
+    });
+    if (!ok) {
+      guardarIgnoradas([...ignoradas, ...ausentes.map(p => p.slug)]);
+      toast("Listo, no vuelvo a preguntar por esas", "ok", 2500);
+      return;
+    }
+    try {
+      await productRepo.pausarPorSlugs(ausentes.map(p => p.slug));
+      toast(`${ausentes.length} prenda(s) pausada(s)`, "ok");
+      await this._reload();
+    } catch (err) {
+      toast("No se pudieron pausar: " + err.message, "error");
     }
   },
 
@@ -207,3 +252,18 @@ export const productosView = {
     }
   },
 };
+
+/* Prendas fuera de la planilla que el dueño ya decidió mantener publicadas.
+   Vive en el navegador: es una preferencia de quien administra, no un dato
+   del catálogo, y así no hace falta tocar el esquema de la base. */
+const IGNORADAS_KEY = "baku_sync_ignorar_v1";
+
+function leerIgnoradas() {
+  try { return JSON.parse(localStorage.getItem(IGNORADAS_KEY)) || []; }
+  catch (_) { return []; }
+}
+
+function guardarIgnoradas(slugs) {
+  try { localStorage.setItem(IGNORADAS_KEY, JSON.stringify([...new Set(slugs)])); }
+  catch (_) {}
+}

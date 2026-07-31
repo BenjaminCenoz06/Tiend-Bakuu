@@ -2,7 +2,7 @@
 //  UI · confirm.js  — diálogo de confirmación (para eliminar, etc.)
 //  Devuelve una promesa que resuelve true/false.
 // =============================================================
-export function confirmDialog({ title = "¿Confirmás?", message = "", okText = "Confirmar", danger = true } = {}) {
+export function confirmDialog({ title = "¿Confirmás?", message = "", okText = "Confirmar", cancelText = "Cancelar", danger = true } = {}) {
   return new Promise((resolve) => {
     const dlg = document.createElement("dialog");
     dlg.className = "modal modal-sm confirm";
@@ -14,7 +14,7 @@ export function confirmDialog({ title = "¿Confirmás?", message = "", okText = 
         <h3>${title}</h3>
         <p>${message}</p>
         <div class="confirm-actions">
-          <button class="btn btn-ghost" data-cancel>Cancelar</button>
+          <button class="btn btn-ghost" data-cancel>${cancelText}</button>
           <button class="btn ${danger ? "btn-danger" : ""}" data-ok>${okText}</button>
         </div>
       </div>`;
