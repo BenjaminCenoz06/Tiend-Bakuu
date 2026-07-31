@@ -18,6 +18,14 @@ function slugify(s) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "producto";
 }
 
+/** Parte una lista en tandas. Los filtros `.in(...)` viajan en la URL y con
+    los ~300 productos de la planilla se pasa del largo máximo (error 414). */
+function enGrupos(lista, tamano) {
+  const salida = [];
+  for (let i = 0; i < lista.length; i += tamano) salida.push(lista.slice(i, i + tamano));
+  return salida;
+}
+
 class ProductRepository extends BaseRepository {
   constructor() {
     super("products", { orderBy: "orden", ascending: true });
@@ -248,44 +256,49 @@ class ProductRepository extends BaseRepository {
       if (onProgress) onProgress(hechos, payloads.length);
     }
 
-    // 5) Imágenes: solo para las filas que realmente traen fotos.
-    if (conImagenes.length) {
-      const { data: creados } = await supabase.from("products")
-        .select("id,slug").in("slug", conImagenes.map(x => x.slug));
-      const idPorSlug = new Map((creados || []).map(p => [p.slug, p.id]));
-      for (const item of conImagenes) {
-        const id = idPorSlug.get(item.slug);
-        if (id) await this._syncImages(id, item.images.map(url => ({ url })));
-      }
+    // 5) Id de cada prenda de la planilla, para imágenes y talles.
+    //    Se pide de a 60 slugs: los filtros `.in(...)` viajan en la URL y
+    //    con 300 se pasa del límite de largo (el servidor corta con 414).
+    const idPorSlug = new Map();
+    for (const grupo of enGrupos(payloads.map(p => p.slug), 60)) {
+      const { data } = await supabase.from("products").select("id,slug").in("slug", grupo);
+      (data || []).forEach(p => idPorSlug.set(p.slug, p.id));
     }
 
-    // 5 bis) Stock por talle. La columna Stock dice cuántas prendas hay y
-    //        las Notas cómo se reparten ("8" = "4 XL, 4 L"). Sin esto la
-    //        tienda dejaba comprar las 8 en cualquier talle.
-    //        Se hace en dos consultas (un borrado y un alta por lotes) en
-    //        vez de dos por prenda: son ~300 productos por sincronización.
-    if (conVariantes.length) {
-      const { data: creados } = await supabase.from("products")
-        .select("id,slug").in("slug", conVariantes.map(x => x.slug));
-      const idPorSlug = new Map((creados || []).map(p => [p.slug, p.id]));
-      const ids = conVariantes.map(v => idPorSlug.get(v.slug)).filter(Boolean);
+    // 6) Imágenes: solo para las filas que realmente traen fotos.
+    for (const item of conImagenes) {
+      const id = idPorSlug.get(item.slug);
+      if (id) await this._syncImages(id, item.images.map(url => ({ url })));
+    }
 
+    // 7) Stock por talle. La columna Stock dice cuántas prendas hay y las
+    //    Notas cómo se reparten ("3" = "2 XL, 1 S"). Sin esto la tienda
+    //    dejaba comprar las 3 en cualquier talle.
+    //
+    //    Se borra el reparto anterior de TODAS las prendas sincronizadas,
+    //    no solo de las que ahora traen talles: si el dueño vacía las
+    //    Notas de una prenda, el reparto viejo tiene que desaparecer y no
+    //    quedar mandando sobre lo que se puede comprar.
+    const idsSincronizados = payloads.map(p => idPorSlug.get(p.slug)).filter(Boolean);
+    for (const grupo of enGrupos(idsSincronizados, 60)) {
       // Solo las variantes que vienen de la planilla: las que el dueño
-      // cargó a mano en el panel llevan color y no se tocan.
-      if (ids.length) await supabase.from("product_variants").delete().in("producto_id", ids).is("color", null);
+      // carga a mano en el panel llevan color y no se tocan.
+      const { error } = await supabase.from("product_variants")
+        .delete().in("producto_id", grupo).is("color", null);
+      if (error) throw new Error(error.message);
+    }
 
-      const filasVariantes = [];
-      for (const item of conVariantes) {
-        const id = idPorSlug.get(item.slug);
-        if (!id) continue;
-        item.variantes.forEach(v => filasVariantes.push({
-          producto_id: id, talle: String(v.talle), stock: Number(v.stock) || 0, color: null,
-        }));
-      }
-      for (let i = 0; i < filasVariantes.length; i += 500) {
-        const { error } = await supabase.from("product_variants").insert(filasVariantes.slice(i, i + 500));
-        if (error) throw new Error(error.message);
-      }
+    const filasVariantes = [];
+    for (const item of conVariantes) {
+      const id = idPorSlug.get(item.slug);
+      if (!id) continue;
+      item.variantes.forEach(v => filasVariantes.push({
+        producto_id: id, talle: String(v.talle), stock: Number(v.stock) || 0, color: null,
+      }));
+    }
+    for (const grupo of enGrupos(filasVariantes, 500)) {
+      const { error } = await supabase.from("product_variants").insert(grupo);
+      if (error) throw new Error(error.message);
     }
 
     // 6) Prendas publicadas que ya no figuran en la planilla. Son las
