@@ -64,11 +64,15 @@ export const shop = {
       }
     }
 
-    if (found) found.qty += cantidad;
-    else cart.push({
+    if (found) {
+      found.qty += cantidad;
+      if (Number.isFinite(disponible)) found.disponible = disponible;
+    } else cart.push({
       id: item.id, slug: item.slug || "", nombre: item.nombre,
       precio: Number(item.precio) || 0, imagen: item.imagen || "",
       talle, color, qty: cantidad,
+      // Cuánto hay de este talle, para topear el "+" del propio carrito.
+      ...(Number.isFinite(disponible) ? { disponible } : {}),
     });
     persist();
     build(); render(); openCart();
@@ -118,7 +122,19 @@ function build() {
 
   drawer.addEventListener("click", (e) => {
     const inc = e.target.closest("[data-inc]"); const dec = e.target.closest("[data-dec]"); const rm = e.target.closest("[data-rm]");
-    if (inc) { cart[+inc.dataset.inc].qty++; persist(); render(); }
+    if (inc) {
+      // El "+" del carrito también respeta el stock del talle: sin esto se
+      // podían agregar 5 desde la ficha y seguir sumando acá.
+      const it = cart[+inc.dataset.inc];
+      const tope = Number(it.disponible);
+      if (Number.isFinite(tope) && it.qty >= tope) {
+        avisar(it.talle
+          ? `Solo quedan ${tope} del talle ${it.talle}.`
+          : `Solo quedan ${tope} unidades.`);
+        return;
+      }
+      it.qty++; persist(); render();
+    }
     else if (dec) { const i = +dec.dataset.dec; cart[i].qty--; if (cart[i].qty <= 0) cart.splice(i, 1); persist(); render(); }
     else if (rm) { cart.splice(+rm.dataset.rm, 1); persist(); render(); }
     else if (e.target.closest("[data-checkout]")) { location.href = "checkout.html"; }

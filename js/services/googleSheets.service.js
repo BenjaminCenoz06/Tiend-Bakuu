@@ -104,21 +104,15 @@ export function parseTallesConCantidad(notas, stockTotal) {
 
   const total = Number(stockTotal || 0);
 
-  // Prenda agotada: se conservan los talles para poder mostrarlos como no
-  // disponibles, pero ninguno se puede comprar.
-  if (total <= 0) return lista.map(v => ({ talle: v.talle, stock: 0 }));
-
   // Un \u00fanico talle anotado sin cantidad ("XXL" con Stock 2): las dos
   // unidades son de ese talle. Si no, se vender\u00eda una sola de las dos.
-  if (lista.length === 1 && !cantidadExplicita) return [{ talle: lista[0].talle, stock: total }];
-
-  // Nunca por encima del stock total: es el n\u00famero que el due\u00f1o controla.
-  const suma = lista.reduce((a, v) => a + v.stock, 0);
-  if (suma > total) {
-    let restante = total;
-    for (const v of lista) { v.stock = Math.min(v.stock, restante); restante -= v.stock; }
-    return lista.filter(v => v.stock > 0);
+  if (lista.length === 1 && !cantidadExplicita && total > 0) {
+    return [{ talle: lista[0].talle, stock: total }];
   }
+
+  // Lo anotado en cada talle manda, aunque sume m\u00e1s que la columna Stock.
+  // Esa columna se desactualiza: hay filas con Stock 1 y "1 M, 5 L", y
+  // recortando al total se perd\u00eda el talle L entero.
   return lista;
 }
 
@@ -211,7 +205,20 @@ export function normalizeSheetProduct(raw) {
   // prendas marcadas Agotado que igual tienen 1, 2 o 3 anotadas. Si se
   // creyera al número, la tienda vendería prendas que ya no están.
   const agotado = /agotad|sin\s*stock/.test(estadoLower);
-  const stock = agotado ? 0 : stockCargado;
+
+  // Talles y cuántas unidades hay de cada uno, desde "Notas".
+  // Se calcula acá arriba porque el total sale de esta cuenta.
+  const tallesRaw = getField(raw, "Notas", "Talles", "Talle", "talles", "Sizes", "Size");
+  const variantes = agotado
+    ? parseTalles(tallesRaw).map(talle => ({ talle, stock: 0 }))
+    : parseTallesConCantidad(tallesRaw, stockCargado);
+  const sizes = variantes.map(v => v.talle);
+  const sumaPorTalle = variantes.reduce((a, v) => a + v.stock, 0);
+
+  // El total es lo que suman los talles cuando eso es más que la columna
+  // Stock, que se desactualiza: hay filas con Stock 1 y "1 M, 5 L". Si se
+  // quedara en 1, el carrito no dejaría comprar las 5 L que sí están.
+  const stock = agotado ? 0 : Math.max(stockCargado, sumaPorTalle);
 
   const isAvailable = estadoLower !== "inactivo" && estadoLower !== "oculto" && estadoLower !== "desactivado";
 
@@ -250,11 +257,7 @@ export function normalizeSheetProduct(raw) {
   const coloresRaw = getField(raw, "Colores", "Color", "colores", "Colors");
   const colors = coloresRaw ? String(coloresRaw).split(/[,;\/\·\-\|\n]+/).map(s => s.trim()).filter(Boolean) : [];
 
-  // Talles y cuántas unidades hay de cada uno: salen de "Notas", el texto
-  // libre del inventario ("1 S, 1 M, 3 L", "4 XL, 4 L", "40/46"…).
-  const tallesRaw = getField(raw, "Notas", "Talles", "Talle", "talles", "Sizes", "Size");
-  const variantes = parseTallesConCantidad(tallesRaw, stock);
-  const sizes = variantes.map(v => v.talle);
+  // (talles y variantes se calcularon arriba, junto con el stock)
 
   // Descripciones
   const desc = String(getField(raw, "Descripción", "Descripcion", "descripcion", "desc", "Description", "description", "Detalle", "detalle") || `${name} — Categoría ${categoryName}. Streetwear Baku.`).trim();
