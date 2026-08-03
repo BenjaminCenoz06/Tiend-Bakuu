@@ -4738,3 +4738,20 @@ a.pdp-color:not(.is-active):hover { transform: scale(1.12); }
 /* El zoom también aplica a la foto real, no sólo al arte SVG */
 .pdp-stage { cursor: zoom-in; }
 .pdp-photo.is-zoom { transform: scale(1.8); cursor: zoom-out; }
+
+/* =============================================================
+   37. SPLASH EN OSCURO — el sello de la marca al entrar
+   Con el tema claro el splash quedó blanco: el subtítulo crema
+   sobre blanco no se leía y el sello dorado perdía toda fuerza.
+   Va oscuro, como el logo del local.
+   ============================================================= */
+.splash {
+  background: #0C0A06;
+  color: #F1ECDE;
+}
+.splash-mark {
+  border-color: rgba(232, 166, 59, 0.85);
+  box-shadow: 0 0 0 1px rgba(232, 166, 59, 0.14), 0 30px 70px -40px rgba(0, 0, 0, 0.9);
+}
+.splash-word { color: var(--gold); }
+.splash-sub { color: rgba(241, 236, 222, 0.6); }
