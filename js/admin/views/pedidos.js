@@ -2,10 +2,13 @@
 //  Vista · Pedidos (listado + cambio de estado + detalle)
 // =============================================================
 import { orderRepo, ORDER_STATES } from "../../repositories/order.repo.js";
+import { settingsRepo } from "../../repositories/settings.repo.js";
 import { openModal } from "../../core/ui/modal.js";
+import { confirmDialog } from "../../core/ui/confirm.js";
 import { toast } from "../../core/ui/toast.js";
 import { money, dateTime, esc, cap } from "../../core/format.js";
 import { getColorHex } from "../../core/colorDictionary.js";
+import { abrirInformeMensual, nombreDeMes, ESTADOS_CONFIRMADOS } from "../cierre-mes.js";
 
 const PILL = {
   pendiente: "pill-warn", preparando: "pill-info", enviado: "pill-info",
@@ -14,7 +17,14 @@ const PILL = {
 const ICON = {
   cart: '<svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 12h11L21 7H6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg>',
   eye:  '<svg viewBox="0 0 20 20"><path d="M1.5 10S4.5 4.5 10 4.5 18.5 10 18.5 10 15.5 15.5 10 15.5 1.5 10 1.5 10z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+  trash: '<svg viewBox="0 0 20 20"><path d="M3.5 5.5h13M8 5.5V4a1 1 0 011-1h2a1 1 0 011 1v1.5M5.5 5.5l.7 10a1 1 0 001 .9h5.6a1 1 0 001-.9l.7-10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
+
+/** Mes actual en formato "2026-07", para el selector del cierre. */
+function mesActual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export const pedidosView = {
   title: "Pedidos",
@@ -24,6 +34,7 @@ export const pedidosView = {
     el.innerHTML = `
       <div class="view-head"><h2>Pedidos</h2><p>Seguimiento de las compras y su estado de entrega.</p></div>
       <div class="toolbar">
+        <button class="btn btn-ghost" data-cierre>Cerrar mes y guardar PDF</button>
         <div class="toolbar-spacer"></div>
         <select class="input" data-filter>
           <option value="">Todos los estados</option>
@@ -31,6 +42,7 @@ export const pedidosView = {
         </select></div>
       <div data-list><div class="table-wrap"><div class="empty"><strong>Cargando…</strong></div></div></div>`;
     el.querySelector("[data-filter]").addEventListener("change", () => this._paint());
+    el.querySelector("[data-cierre]").addEventListener("click", () => this._abrirCierre());
     el.querySelector("[data-list]").addEventListener("click", (e) => this._onAction(e));
     el.querySelector("[data-list]").addEventListener("change", (e) => this._onEstado(e));
     await this._reload();
@@ -63,7 +75,8 @@ export const pedidosView = {
             <select class="input" data-estado style="min-height:36px;padding:0 .5rem;font-size:.82rem">
               ${ORDER_STATES.map(s => `<option value="${s}" ${o.estado === s ? "selected" : ""}>${cap(s)}</option>`).join("")}
             </select>
-            <button class="row-btn" data-ver title="Ver detalle">${ICON.eye}</button></div></td></tr>`).join("")}
+            <button class="row-btn" data-ver title="Ver detalle">${ICON.eye}</button>
+            <button class="row-btn danger" data-del title="Eliminar pedido">${ICON.trash}</button></div></td></tr>`).join("")}
       </tbody></table></div>`;
   },
 
@@ -79,7 +92,10 @@ export const pedidosView = {
     } catch (err) { toast(err.message, "error"); }
   },
 
-  _onAction(e) {
+  async _onAction(e) {
+    const del = e.target.closest("[data-del]");
+    if (del) return this._eliminar(del.closest("tr").dataset.id);
+
     const ver = e.target.closest("[data-ver]"); if (!ver) return;
     const id = ver.closest("tr").dataset.id;
     const o = this._all.find(x => x.id === id);
@@ -136,5 +152,122 @@ export const pedidosView = {
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);font-size:1.2rem"><span class="td-mute">Total del pedido</span><strong style="font-family:var(--mono)">${money(o.total)}</strong></div>`;
     openModal({ title: `Pedido #${o.numero}`, body });
+  },
+
+  /** Borra un pedido suelto. El stock ya descontado no vuelve solo. */
+  async _eliminar(id) {
+    const o = this._all.find(x => x.id === id);
+    if (!o) return;
+    const ok = await confirmDialog({
+      title: `Eliminar el pedido #${o.numero}`,
+      message: `Se borra de la lista junto con sus prendas. No se puede deshacer y el stock descontado no vuelve solo. Total: ${money(o.total)}.`,
+      okText: "Eliminar",
+    });
+    if (!ok) return;
+    try {
+      await orderRepo.remove(id);
+      this._all = this._all.filter(x => x.id !== id);
+      this._paint();
+      toast(`Pedido #${o.numero} eliminado`, "ok");
+    } catch (err) { toast(err.message, "error"); }
+  },
+
+  /**
+   * Cierre de mes: informe en PDF de lo vendido y limpieza de la lista.
+   * Primero muestra exactamente qué se va a guardar y qué se va a borrar,
+   * porque el borrado no tiene vuelta atrás.
+   */
+  async _abrirCierre() {
+    const body = document.createElement("div");
+    body.innerHTML = `
+      <div class="field">
+        <label for="cierre-mes">Mes a cerrar</label>
+        <input class="input" id="cierre-mes" type="month" value="${mesActual()}" max="${mesActual()}">
+      </div>
+      <div data-resumen style="margin-top:1rem"><p class="td-mute">Cargando el mes…</p></div>`;
+
+    const foot = document.createElement("div");
+    foot.innerHTML = `<button class="btn btn-ghost" data-cancel>Cancelar</button>
+      <button class="btn" data-ok disabled>Generar PDF y cerrar mes</button>`;
+    const modal = openModal({ title: "Cerrar mes", body, size: "lg", footer: foot });
+
+    const input = body.querySelector("#cierre-mes");
+    const resumen = body.querySelector("[data-resumen]");
+    const btnOk = foot.querySelector("[data-ok]");
+    let datos = null;
+
+    const cargar = async () => {
+      btnOk.disabled = true;
+      resumen.innerHTML = `<p class="td-mute">Buscando pedidos de ${nombreDeMes(input.value)}…</p>`;
+      try {
+        const pedidos = await orderRepo.delMes(input.value);
+        const confirmados = pedidos.filter(o => ESTADOS_CONFIRMADOS.includes(o.estado));
+        const pendientes = pedidos.filter(o => o.estado === "pendiente");
+        const cancelados = pedidos.filter(o => o.estado === "cancelado");
+        const total = confirmados.reduce((a, o) => a + Number(o.total || 0), 0);
+        datos = { pedidos, confirmados, pendientes, cancelados, total };
+
+        resumen.innerHTML = `
+          <div class="table-wrap" style="padding:1rem 1.1rem">
+            <div style="display:flex;justify-content:space-between;margin-bottom:.5rem">
+              <span>Ventas confirmadas <span class="td-mute">(preparando, enviado, entregado)</span></span>
+              <strong>${confirmados.length} · ${money(total)}</strong></div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:.5rem">
+              <span class="td-mute">Cancelados del mes</span><span class="td-mute">${cancelados.length}</span></div>
+            <div style="display:flex;justify-content:space-between">
+              <span class="td-mute">Pendientes de pago</span>
+              <span class="pill pill-warn">${pendientes.length} se conservan</span></div>
+          </div>
+          <p class="field-hint" style="margin-top:.8rem">
+            Se abre el informe de <strong>${nombreDeMes(input.value)}</strong> para guardar como PDF y después se
+            borran los <strong>${confirmados.length + cancelados.length}</strong> pedidos ya cerrados.
+            Los pendientes quedan en la lista por si el cliente todavía paga.
+          </p>`;
+        btnOk.disabled = !confirmados.length && !cancelados.length;
+      } catch (err) {
+        resumen.innerHTML = `<p class="err">${esc(err.message)}</p>`;
+      }
+    };
+
+    input.addEventListener("change", cargar);
+    foot.querySelector("[data-cancel]").addEventListener("click", () => modal.close());
+    btnOk.addEventListener("click", () => this._ejecutarCierre(input.value, datos, modal, btnOk));
+    cargar();
+  },
+
+  async _ejecutarCierre(mes, datos, modal, btn) {
+    if (!datos) return;
+    const aBorrar = [...datos.confirmados, ...datos.cancelados].map(o => o.id);
+
+    const ok = await confirmDialog({
+      title: `Cerrar ${nombreDeMes(mes)}`,
+      message: `Se van a borrar ${aBorrar.length} pedidos después de generar el PDF. Guardá el archivo antes de seguir: es el único registro que queda.`,
+      okText: "Generar y borrar",
+    });
+    if (!ok) return;
+
+    btn.disabled = true;
+    btn.textContent = "Generando informe…";
+    try {
+      const cfg = await settingsRepo.get().catch(() => ({}));
+      const abrio = abrirInformeMensual(mes, datos.confirmados, {
+        nombre: cfg.nombre, direccion: (cfg.contacto || {}).direccion,
+      });
+      if (!abrio) {
+        toast("El navegador bloqueó la ventana del informe. Permití las ventanas emergentes y probá de nuevo.", "error", 6000);
+        btn.disabled = false; btn.textContent = "Generar PDF y cerrar mes";
+        return;                                  // sin PDF no se borra nada
+      }
+
+      btn.textContent = "Limpiando el mes…";
+      await orderRepo.removeMany(aBorrar);
+      this._all = this._all.filter(o => !aBorrar.includes(o.id));
+      this._paint();
+      modal.close();
+      toast(`${nombreDeMes(mes)} cerrado: ${datos.confirmados.length} ventas en el PDF, ${aBorrar.length} pedidos archivados`, "ok", 5000);
+    } catch (err) {
+      toast(err.message, "error");
+      btn.disabled = false; btn.textContent = "Generar PDF y cerrar mes";
+    }
   },
 };
