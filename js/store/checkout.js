@@ -22,7 +22,16 @@ let user = null;
 let customer = null;
 let settings = null;
 let step = "entrega";              // entrega | pago
-let form = { contacto: {}, envio: {} };
+let form = { contacto: {}, envio: {}, modo: "envio" };   // modo: envio | retiro
+
+/** Dirección y horarios del local, para el retiro. */
+function local() {
+  const ct = (settings && settings.contacto) || {};
+  return {
+    direccion: ct.direccion || "Montevideo 32, Nueva Córdoba, Córdoba",
+    horarios: ct.horarios || "Lunes a sábado de 10 a 21 h",
+  };
+}
 
 function loadCart() { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch { return []; } }
 function clearCart() { try { localStorage.setItem(CART_KEY, "[]"); } catch (_) {} cart = []; }
@@ -87,7 +96,7 @@ function summaryHTML() {
         </div>
       </div>`).join("")}
     <div class="sum-line"><span>Subtotal</span><span>${money(total())}</span></div>
-    <div class="sum-line"><span>Envío</span><span>A coordinar</span></div>
+    <div class="sum-line"><span>Entrega</span><span>${form.modo === "retiro" ? "Retiro en el local · sin cargo" : "Envío · a coordinar"}</span></div>
     <div class="sum-total"><span>Total</span><b>${money(total())}</b></div>
   </div>`;
 }
@@ -186,31 +195,55 @@ function renderEntrega() {
   const tel = form.contacto.telefono ?? (c.telefono || "");
   const v = (k, d = "") => (e[k] ?? d);
 
+  const L = local();
+  const esRetiro = form.modo === "retiro";
+
   shell("entrega", `
     <div class="userbar">
       <span>Sesión: <strong>${esc(user.email)}</strong></span>
       <a href="#" data-logout>Cerrar sesión</a>
     </div>
     <div class="card">
-      <h2>Datos de contacto y envío</h2>
+      <h2>¿Cómo querés recibirlo?</h2>
       <form data-form>
-        <div class="section-label">Contacto</div>
+        <div class="pay" data-modo>
+          <label><input type="radio" name="modo" value="envio" ${esRetiro ? "" : "checked"}>
+            <span class="pay-txt"><strong>Envío a domicilio</strong>
+            <span>A todo el país. El costo se coordina con la tienda; gratis desde $150.000.</span></span></label>
+          <label><input type="radio" name="modo" value="retiro" ${esRetiro ? "checked" : ""}>
+            <span class="pay-txt"><strong>Retiro en el local — sin cargo</strong>
+            <span>${esc(L.direccion)} · ${esc(L.horarios)}</span></span></label>
+        </div>
+
+        <div class="section-label">Tus datos</div>
         <div class="grid2">
           <div class="field"><label>Nombre *</label><input class="input" name="nombre" required value="${esc(nombre)}"></div>
           <div class="field"><label>Apellido *</label><input class="input" name="apellido" required value="${esc(apellido)}"></div>
         </div>
         <div class="field"><label>Teléfono / WhatsApp *</label><input class="input" name="telefono" required inputmode="tel" placeholder="+54 9 351 555 5555" value="${esc(tel)}"></div>
+        <p class="hint">Te escribimos a <strong>${esc(user.email)}</strong> y a ese WhatsApp para coordinar.</p>
 
-        <div class="section-label">Dirección de entrega</div>
-        <div class="grid2">
-          <div class="field"><label>Calle *</label><input class="input" name="calle" required value="${esc(v("calle"))}"></div>
-          <div class="field"><label>Número *</label><input class="input" name="numero" required value="${esc(v("numero"))}"></div>
-          <div class="field"><label>Depto / Piso</label><input class="input" name="depto" value="${esc(v("depto"))}"></div>
-          <div class="field"><label>Barrio</label><input class="input" name="barrio" value="${esc(v("barrio"))}"></div>
-          <div class="field"><label>Ciudad / Localidad *</label><input class="input" name="ciudad" required value="${esc(v("ciudad"))}"></div>
-          <div class="field"><label>Provincia *</label><input class="input" name="provincia" required value="${esc(v("provincia"))}"></div>
-          <div class="field"><label>Código Postal *</label><input class="input" name="cp" required inputmode="numeric" value="${esc(v("cp"))}"></div>
+        <div data-envio-fields ${esRetiro ? "hidden" : ""}>
+          <div class="section-label">Dirección de entrega</div>
+          <div class="grid2">
+            <div class="field"><label>Calle *</label><input class="input" name="calle" value="${esc(v("calle"))}"></div>
+            <div class="field"><label>Número *</label><input class="input" name="numero" value="${esc(v("numero"))}"></div>
+            <div class="field"><label>Depto / Piso</label><input class="input" name="depto" value="${esc(v("depto"))}"></div>
+            <div class="field"><label>Barrio</label><input class="input" name="barrio" value="${esc(v("barrio"))}"></div>
+            <div class="field"><label>Ciudad / Localidad *</label><input class="input" name="ciudad" value="${esc(v("ciudad"))}"></div>
+            <div class="field"><label>Provincia *</label><input class="input" name="provincia" value="${esc(v("provincia"))}"></div>
+            <div class="field"><label>Código Postal *</label><input class="input" name="cp" inputmode="numeric" value="${esc(v("cp"))}"></div>
+          </div>
         </div>
+
+        <div data-retiro-info ${esRetiro ? "" : "hidden"}>
+          <div class="section-label">Dónde retirarlo</div>
+          <p class="pay-detail" style="display:block">
+            <strong>${esc(L.direccion)}</strong><br>${esc(L.horarios)}<br>
+            <span class="hint">Te avisamos por WhatsApp cuando esté listo. Llevá tu DNI.</span>
+          </p>
+        </div>
+
         <div class="field col2"><label>Notas del pedido (opcional)</label><textarea class="input" name="notas" placeholder="Referencia, horario de entrega, etc.">${esc(form.contacto.notas || "")}</textarea></div>
         <p class="err" data-err></p>
         <div class="btn-row">
@@ -222,18 +255,54 @@ function renderEntrega() {
 
   app.querySelector("[data-logout]").addEventListener("click", async (ev) => { ev.preventDefault(); await signOut(); });
   const f = app.querySelector("[data-form]");
+  const campos = f.querySelector("[data-envio-fields]");
+  const infoRetiro = f.querySelector("[data-retiro-info]");
+  const OBLIGATORIOS = ["calle", "numero", "ciudad", "provincia", "cp"];
+
+  // La dirección solo se exige con envío: pedírsela a quien retira en el
+  // local era trabarle la compra por datos que no hacen falta.
+  const aplicarModo = () => {
+    const retiro = f.querySelector('input[name="modo"]:checked').value === "retiro";
+    form.modo = retiro ? "retiro" : "envio";
+    campos.hidden = retiro;
+    infoRetiro.hidden = !retiro;
+    OBLIGATORIOS.forEach(n => { f.elements[n].required = !retiro; });
+  };
+  aplicarModo();
+  f.addEventListener("change", (e) => { if (e.target.name === "modo") aplicarModo(); });
+
   f.addEventListener("submit", (ev) => {
     ev.preventDefault();
     if (!f.reportValidity()) return;
     const fd = new FormData(f);
-    form.contacto = { nombre: fd.get("nombre").trim(), apellido: fd.get("apellido").trim(), telefono: fd.get("telefono").trim(), notas: fd.get("notas").trim() };
-    form.envio = {
-      calle: fd.get("calle").trim(), numero: fd.get("numero").trim(), depto: fd.get("depto").trim(),
-      barrio: fd.get("barrio").trim(), ciudad: fd.get("ciudad").trim(), provincia: fd.get("provincia").trim(), cp: fd.get("cp").trim(),
+    const t = (k) => String(fd.get(k) || "").trim();
+    form.contacto = { nombre: t("nombre"), apellido: t("apellido"), telefono: t("telefono"), notas: t("notas") };
+    form.envio = form.modo === "retiro" ? {} : {
+      calle: t("calle"), numero: t("numero"), depto: t("depto"),
+      barrio: t("barrio"), ciudad: t("ciudad"), provincia: t("provincia"), cp: t("cp"),
     };
     step = "pago"; render();
   });
 }
+
+/** La dirección en una línea, para WhatsApp y para el panel. */
+function direccionEnLinea() {
+  const e = form.envio;
+  return [
+    [e.calle, e.numero].filter(Boolean).join(" "),
+    e.depto && "Depto " + e.depto,
+    e.barrio,
+    e.ciudad,
+    e.provincia,
+    e.cp && "CP " + e.cp,
+  ].filter(Boolean).join(", ");
+}
+
+const NOMBRE_PAGO = {
+  transferencia: "Transferencia bancaria",
+  mercadopago: "Mercado Pago",
+  efectivo: "Efectivo / a coordinar",
+};
 
 /* ---------------- Paso 2: Pago (manual) ---------------- */
 function renderPago() {
@@ -305,12 +374,26 @@ function renderPago() {
 /* ---------------- Registrar el pedido en Supabase ---------------- */
 async function placeOrder(metodo) {
   const c = form.contacto, e = form.envio;
+  const retiro = form.modo === "retiro";
+
+  // El pedido en la base solo tiene `notas` como texto libre: no hay
+  // columnas para entrega ni medio de pago. Se arma acá un bloque legible
+  // para que el dueño vea todo en el panel, no solo en WhatsApp.
+  const notas = [
+    retiro ? `ENTREGA: Retiro en el local (${local().direccion})` : "ENTREGA: Envío a domicilio",
+    retiro ? null : `DIRECCIÓN: ${direccionEnLinea()}`,
+    `PAGO: ${NOMBRE_PAGO[metodo] || metodo}`,
+    `CONTACTO: ${c.nombre} ${c.apellido} · ${c.telefono} · ${user.email}`,
+    c.notas ? `NOTA DEL CLIENTE: ${c.notas}` : null,
+  ].filter(Boolean).join("\n");
+
   const { data, error } = await supabase.rpc("create_order", {
     payload: {
-      cliente: { nombre: c.nombre, apellido: c.apellido, email: user.email, telefono: c.telefono },
+      cliente: { nombre: `${c.nombre} ${c.apellido}`.trim(), email: user.email, telefono: c.telefono, whatsapp: c.telefono },
       envio: e,
+      metodo_entrega: form.modo,
       metodo_pago: metodo,
-      notas: c.notas || null,
+      notas,
       items: cart.map(it => ({ producto_id: it.id, cantidad: it.qty, talle: it.talle, color: it.color })),
     },
   });
@@ -322,17 +405,58 @@ async function placeOrder(metodo) {
     if (item?.slug) pushStockToSheet(item.slug, stock).catch(() => {});
   });
 
-  const snapshot = { total: total(), lines: cart.map(it => `• ${it.nombre}${it.talle ? " (Talle " + it.talle + ")" : ""}${it.color ? " (" + it.color + ")" : ""} x${it.qty}`) };
+  const snapshot = {
+    total: total(),
+    lines: cart.map(it => {
+      const detalle = [it.talle && "Talle " + it.talle, it.color].filter(Boolean).join(" · ");
+      return `• ${it.nombre}${detalle ? ` (${detalle})` : ""} x${it.qty} — ${money(it.precio * it.qty)}`;
+    }),
+  };
   clearCart();
   return { ...data, snapshot };
+}
+
+/**
+ * Mensaje de WhatsApp con el pedido entero: quién compra, cómo lo recibe,
+ * qué se lleva y cómo paga. Es lo único que le llega al local, así que si
+ * falta un dato hay que salir a pedirlo por chat.
+ */
+function mensajeWhatsApp(order, metodo) {
+  const c = form.contacto;
+  const retiro = form.modo === "retiro";
+  const L = local();
+
+  return [
+    `*NUEVO PEDIDO #${order.numero}* — BAKU Indumentaria`,
+    "",
+    "*Cliente*",
+    `${c.nombre} ${c.apellido}`,
+    `Email: ${user.email}`,
+    `WhatsApp: ${c.telefono}`,
+    "",
+    "*Entrega*",
+    retiro ? `Retiro en el local — ${L.direccion}` : "Envío a domicilio",
+    retiro ? `Horarios: ${L.horarios}` : `Dirección: ${direccionEnLinea()}`,
+    "",
+    "*Productos*",
+    ...order.snapshot.lines,
+    "",
+    `*Total: ${money(order.snapshot.total)}*`,
+    `*Pago: ${NOMBRE_PAGO[metodo] || metodo}*`,
+    c.notas ? `\n*Nota del cliente:* ${c.notas}` : null,
+    "",
+    metodo === "efectivo"
+      ? "Quedo atento para coordinar. ¡Gracias!"
+      : "Ahora les envío el comprobante. ¡Gracias!",
+  ].filter(l => l !== null).join("\n");   // los "" son los renglones en blanco
 }
 
 /* ---------------- Confirmación ---------------- */
 function renderOk(order, metodo) {
   const ct = (settings && settings.contacto) || {};
   const wa = ct.whatsapp ? String(ct.whatsapp).replace(/\D/g, "") : "";
-  const msg = `¡Hola BAKU! Acabo de hacer el pedido #${order.numero}.\n\n${order.snapshot.lines.join("\n")}\n\nTotal: ${money(order.snapshot.total)}\nPago: ${metodo}\n\nEnvío el comprobante.`;
-  const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(msg)}` : "";
+  const waLink = wa ? `https://wa.me/${wa}?text=${encodeURIComponent(mensajeWhatsApp(order, metodo))}` : "";
+  const retiro = form.modo === "retiro";
 
   app.innerHTML = `
     <div class="co-grid">
@@ -340,12 +464,26 @@ function renderOk(order, metodo) {
         <div class="ok-ico"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <h2>¡Pedido registrado!</h2>
         <div class="ok-num">#${order.numero}</div>
-        <p class="hint" style="margin-bottom:1.4rem">Guardamos tu pedido. Ahora envianos el comprobante de pago por WhatsApp y coordinamos el envío. También podés ver este pedido desde tu cuenta.</p>
-        ${waLink ? `<a class="btn" href="${waLink}" target="_blank" rel="noopener" style="max-width:340px;margin:0 auto .8rem">Enviar comprobante por WhatsApp</a>` : ""}
+        <p class="hint" style="margin-bottom:1.4rem">
+          Falta un paso: <strong>mandanos el pedido por WhatsApp</strong> para
+          ${metodo === "efectivo" ? "coordinar" : "pasarte los datos y recibir el comprobante"}.
+          Ya va escrito con todos tus datos, solo tocá enviar.
+        </p>
+        ${waLink
+          ? `<a class="btn" href="${waLink}" target="_blank" rel="noopener" data-wa style="max-width:340px;margin:0 auto .8rem">Enviar pedido por WhatsApp →</a>`
+          : `<p class="err">La tienda todavía no cargó su WhatsApp. Escribinos a ${esc(ct.email || "el local")} con el número de pedido.</p>`}
+        <p class="hint" style="margin-bottom:1.2rem">
+          ${retiro ? "Te avisamos cuando esté listo para retirar." : "Coordinamos el envío por ese mismo chat."}
+          Guardá el número <strong>#${order.numero}</strong> para cualquier consulta.
+        </p>
         <a class="btn btn-ghost" href="index.html" style="max-width:340px;margin:0 auto">Volver a la tienda</a>
       </div>
       <aside class="summary">${summaryOk(order)}</aside>
     </div>`;
+
+  // Se abre solo: el pedido no le sirve al local hasta que llega el mensaje.
+  const link = app.querySelector("[data-wa]");
+  if (link) setTimeout(() => window.open(link.href, "_blank", "noopener"), 600);
 }
 
 function summaryOk(order) {
